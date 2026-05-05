@@ -444,7 +444,7 @@ function showAddIngredient(){
     <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" placeholder="e.g. Almond flour"></div></div>
     <div class="form-row">
       <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="0" step="0.1"></div>
-      <div class="form-group"><label>Unit</label><select id="m-unit"><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pcs</option></select></div>
+      <div class="form-group"><label>Unit</label><select id="m-unit"><option>kg</option><option>g</option><option>mg</option><option>lb</option><option>oz</option><option>L</option><option>ml</option><option>fl oz</option><option>tsp</option><option>tbsp</option><option>cup</option><option>pcs</option></select></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Cost per unit (${CURRENCY})</label><input id="m-cost" type="number" value="0" step="0.01"></div></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem">
@@ -470,7 +470,7 @@ function showEditIngredient(id){
     <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" value="${i.name}"></div></div>
     <div class="form-row">
       <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="${i.stock}" step="0.1"></div>
-      <div class="form-group"><label>Unit</label><select id="m-unit"><option ${i.unit==='kg'?'selected':''}>kg</option><option ${i.unit==='g'?'selected':''}>g</option><option ${i.unit==='L'?'selected':''}>L</option><option ${i.unit==='ml'?'selected':''}>ml</option><option ${i.unit==='pcs'?'selected':''}>pcs</option></select></div>
+      <div class="form-group"><label>Unit</label><select id="m-unit"><option ${i.unit==='kg'?'selected':''}>kg</option><option ${i.unit==='g'?'selected':''}>g</option><option ${i.unit==='mg'?'selected':''}>mg</option><option ${i.unit==='lb'?'selected':''}>lb</option><option ${i.unit==='oz'?'selected':''}>oz</option><option ${i.unit==='L'?'selected':''}>L</option><option ${i.unit==='ml'?'selected':''}>ml</option><option ${i.unit==='fl oz'?'selected':''}>fl oz</option><option ${i.unit==='tsp'?'selected':''}>tsp</option><option ${i.unit==='tbsp'?'selected':''}>tbsp</option><option ${i.unit==='cup'?'selected':''}>cup</option><option ${i.unit==='pcs'?'selected':''}>pcs</option></select></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Cost per unit (${CURRENCY})</label><input id="m-cost" type="number" value="${i.cost}" step="0.01"></div></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem">
