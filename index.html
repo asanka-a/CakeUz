@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CakeUz — by Asanka</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --cream: #FDF8F2;
+  --warm-white: #FFFCF8;
+  --caramel: #C8843A;
+  --caramel-light: #E8A55A;
+  --caramel-dark: #9E6220;
+  --chocolate: #3D1F0A;
+  --chocolate-mid: #5C3317;
+  --mocha: #8B5E3C;
+  --blush: #F2DDD0;
+  --sage: #7A9E7E;
+  --rose: #C97B84;
+  --text-primary: #2A1506;
+  --text-secondary: #7A5C45;
+  --text-muted: #B8967A;
+  --border: #E8D5C0;
+  --border-light: #F0E4D4;
+  --success: #5A8A5A;
+  --warning: #C8843A;
+  --danger: #B85555;
+  --shadow-sm: 0 1px 3px rgba(61,31,10,0.08);
+  --shadow-md: 0 4px 16px rgba(61,31,10,0.1);
+  --shadow-lg: 0 12px 40px rgba(61,31,10,0.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-primary);min-height:100vh}
+
+/* TOP BAR */
+.topbar{background:var(--chocolate);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-md)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:36px;height:36px;background:var(--caramel);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.brand-name{font-family:'Playfair Display',serif;font-size:22px;color:#FDF8F2;font-weight:600;letter-spacing:0.02em}
+.brand-sub{font-size:11px;color:var(--mocha);letter-spacing:0.08em;text-transform:uppercase;font-weight:500}
+.topbar-date{font-size:12px;color:var(--mocha)}
+
+/* NAV */
+.nav-wrap{background:var(--warm-white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;gap:0;overflow-x:auto}
+.nav-btn{padding:14px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;letter-spacing:0.01em}
+.nav-btn:hover{color:var(--chocolate)}
+.nav-btn.active{color:var(--caramel-dark);border-bottom-color:var(--caramel);font-weight:600}
+
+/* MAIN */
+.main{padding:2rem;max-width:1200px;margin:0 auto}
+
+/* CARDS */
+.card{background:var(--warm-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow-sm)}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--chocolate)}
+
+/* METRICS */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem}
+.metric{background:var(--warm-white);border:1px solid var(--border-light);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm)}
+.metric-label{font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
+.metric-val{font-family:'Playfair Display',serif;font-size:24px;font-weight:600;color:var(--chocolate)}
+.metric-val.green{color:var(--success)}
+.metric-val.amber{color:var(--warning)}
+.metric-val.red{color:var(--danger)}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+th{text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:10px 10px;border-bottom:1px solid var(--border-light);color:var(--text-primary);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(200,132,58,0.03)}
+
+/* BADGES */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.02em}
+.badge-ok{background:#EBF5EB;color:var(--success)}
+.badge-warn{background:#FEF3E2;color:var(--warning)}
+.badge-danger{background:#FDEAEA;color:var(--danger)}
+.badge-info{background:#EBF0FA;color:#4A6FA5}
+
+/* BUTTONS */
+.btn{padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:transparent;cursor:pointer;color:var(--text-primary);transition:all 0.15s;letter-spacing:0.02em}
+.btn:hover{background:var(--blush);border-color:var(--caramel-light)}
+.btn-primary{background:var(--caramel);color:#FFF;border-color:var(--caramel)}
+.btn-primary:hover{background:var(--caramel-dark);border-color:var(--caramel-dark)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-danger{border-color:#E0BBBB;color:var(--danger)}
+.btn-danger:hover{background:#FDEAEA;border-color:var(--danger)}
+.btn-chocolate{background:var(--chocolate);color:#FDF8F2;border-color:var(--chocolate)}
+.btn-chocolate:hover{background:var(--chocolate-mid);border-color:var(--chocolate-mid)}
+
+/* FORMS */
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+input,select,textarea{font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--warm-white);color:var(--text-primary);transition:border-color 0.15s}
+input:focus,select:focus{outline:none;border-color:var(--caramel)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(42,21,6,0.5);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;backdrop-filter:blur(2px)}
+.modal{background:var(--warm-white);border-radius:var(--radius-lg);padding:2rem;width:100%;max-width:520px;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease}
+@keyframes modalIn{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--chocolate);margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border-light)}
+
+/* MISC */
+.section{display:none}.section.active{display:block}
+.ing-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.ing-row select{flex:2}.ing-row input{flex:1}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:1.5rem;text-align:center;cursor:pointer;background:var(--cream);transition:all 0.2s}
+.upload-zone:hover{border-color:var(--caramel-light);background:var(--blush)}
+.receipt-thumb{width:56px;height:56px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer}
+.price-up{color:var(--danger);font-size:11px;font-weight:600}
+.price-down{color:var(--success);font-size:11px;font-weight:600}
+.profit-bar-wrap{background:var(--blush);border-radius:4px;height:8px;overflow:hidden;margin-top:5px}
+.profit-bar{height:8px;border-radius:4px;transition:width 0.5s ease}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--caramel);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px}
+.divider{height:1px;background:var(--border-light);margin:12px 0}
+.empty-state{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
+.trip-card{border:1px solid var(--border-light);border-radius:var(--radius);padding:1rem;margin-bottom:10px;background:var(--cream)}
+.tag{display:inline-block;background:var(--blush);color:var(--caramel-dark);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-right:4px}
+
+/* HERO STAT */
+.hero-stat{background:linear-gradient(135deg,var(--chocolate) 0%,var(--chocolate-mid) 100%);border-radius:var(--radius-lg);padding:1.5rem 2rem;color:#FDF8F2;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow-md)}
+.hero-stat-main{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:#FDF8F2}
+.hero-stat-label{font-size:12px;color:var(--mocha);text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px}
+.hero-stat-sub{font-size:12px;color:var(--mocha);margin-top:4px}
+.cake-emoji{font-size:48px;opacity:0.6}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🎂</div>
+    <div>
+      <div class="brand-name">CakeUz</div>
+      <div class="brand-sub">by Asanka</div>
+    </div>
+  </div>
+  <div class="topbar-date" id="topbar-date"></div>
+</div>
+
+<div class="nav-wrap">
+  <button class="nav-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+  <button class="nav-btn" onclick="switchTab('inventory',this)">Inventory</button>
+  <button class="nav-btn" onclick="switchTab('shopping',this)">Shopping</button>
+  <button class="nav-btn" onclick="switchTab('recipes',this)">Recipes</button>
+  <button class="nav-btn" onclick="switchTab('orders',this)">Orders</button>
+  <button class="nav-btn" onclick="switchTab('pricing',this)">Pricing</button>
+</div>
+
+<div class="main">
+  <div id="tab-dashboard" class="section active"></div>
+  <div id="tab-inventory" class="section"></div>
+  <div id="tab-shopping" class="section"></div>
+  <div id="tab-recipes" class="section"></div>
+  <div id="tab-orders" class="section"></div>
+  <div id="tab-pricing" class="section"></div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = {
+  ingredients: [
+    {id:1,name:"All-purpose flour",stock:5,unit:"kg",cost:220},
+    {id:2,name:"Butter",stock:2,unit:"kg",cost:1800},
+    {id:3,name:"Sugar",stock:3,unit:"kg",cost:190},
+    {id:4,name:"Eggs",stock:24,unit:"pcs",cost:35},
+    {id:5,name:"Milk",stock:3,unit:"L",cost:220},
+    {id:6,name:"Cocoa powder",stock:0.5,unit:"kg",cost:2400},
+    {id:7,name:"Vanilla extract",stock:100,unit:"ml",cost:8},
+    {id:8,name:"Baking powder",stock:200,unit:"g",cost:3},
+    {id:9,name:"Cream cheese",stock:1,unit:"kg",cost:2200},
+    {id:10,name:"Icing sugar",stock:2,unit:"kg",cost:280}
+  ],
+  priceHistory: {
+    1:[{date:"2026-03-01",cost:200},{date:"2026-04-01",cost:210},{date:"2026-05-01",cost:220}],
+    2:[{date:"2026-03-01",cost:1650},{date:"2026-04-01",cost:1750},{date:"2026-05-01",cost:1800}],
+    3:[{date:"2026-03-01",cost:175},{date:"2026-04-01",cost:185},{date:"2026-05-01",cost:190}],
+    4:[{date:"2026-03-01",cost:30},{date:"2026-04-01",cost:32},{date:"2026-05-01",cost:35}],
+    5:[{date:"2026-03-01",cost:200},{date:"2026-05-01",cost:220}],
+    6:[{date:"2026-03-01",cost:2200},{date:"2026-05-01",cost:2400}],
+    7:[{date:"2026-03-01",cost:8}],8:[{date:"2026-03-01",cost:3}],
+    9:[{date:"2026-03-01",cost:2000},{date:"2026-05-01",cost:2200}],
+    10:[{date:"2026-03-01",cost:260},{date:"2026-05-01",cost:280}]
+  },
+  shoppingTrips:[],
+  recipes:[
+    {id:1,name:"Chocolate Fudge Cake",yield:"1 whole cake (8 inch)",sellPrice:4500,ingredients:[
+      {ingId:1,qty:0.3},{ingId:2,qty:0.25},{ingId:3,qty:0.3},{ingId:4,qty:3},{ingId:5,qty:0.15},{ingId:6,qty:0.08},{ingId:7,qty:10},{ingId:8,qty:5}]},
+    {id:2,name:"Vanilla Sponge Cake",yield:"1 whole cake (8 inch)",sellPrice:3200,ingredients:[
+      {ingId:1,qty:0.25},{ingId:2,qty:0.2},{ingId:3,qty:0.25},{ingId:4,qty:4},{ingId:5,qty:0.1},{ingId:7,qty:15},{ingId:8,qty:5}]},
+    {id:3,name:"Cream Cheese Cupcakes",yield:"12 cupcakes",sellPrice:3600,ingredients:[
+      {ingId:1,qty:0.15},{ingId:2,qty:0.1},{ingId:3,qty:0.15},{ingId:4,qty:2},{ingId:5,qty:0.05},{ingId:9,qty:0.25},{ingId:10,qty:0.1},{ingId:7,qty:5},{ingId:8,qty:3}]},
+    {id:4,name:"Red Velvet Cake",yield:"1 whole cake (8 inch)",sellPrice:5500,ingredients:[
+      {ingId:1,qty:0.28},{ingId:2,qty:0.22},{ingId:3,qty:0.28},{ingId:4,qty:3},{ingId:5,qty:0.15},{ingId:6,qty:0.04},{ingId:9,qty:0.3},{ingId:10,qty:0.15},{ingId:7,qty:10},{ingId:8,qty:5}]}
+  ],
+  orders:[
+    {id:1,customer:"Kamali Perera",recipeId:1,qty:1,note:"No nuts",dueDate:"2026-05-05",status:"pending"},
+    {id:2,customer:"Nimal Fernando",recipeId:3,qty:2,note:"Birthday theme",dueDate:"2026-05-08",status:"pending"},
+    {id:3,customer:"Sachini Silva",recipeId:2,qty:1,note:"",dueDate:"2026-05-02",status:"done"},
+    {id:4,customer:"Tharushi Jayasinghe",recipeId:4,qty:1,note:"Delivery needed",dueDate:"2026-05-10",status:"pending"}
+  ],
+  nextIngId:11,nextRecipeId:5,nextOrderId:5,nextTripId:1
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const fmtLKR = n => "LKR " + Math.round(n).toLocaleString();
+const fmtPct = n => Math.round(n) + "%";
+const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '';
+const today = () => new Date().toISOString().split('T')[0];
+const getIng = id => S.ingredients.find(i=>i.id===id);
+const getRecipe = id => S.recipes.find(r=>r.id===id);
+const calcIngCost = r => r.ingredients.reduce((s,ri)=>{ const i=getIng(ri.ingId); return s+(i?i.cost*ri.qty:0); },0);
+const ingOpts = (sel=null) => S.ingredients.map(i=>`<option value="${i.id}"${sel===i.id?' selected':''}>${i.name} (${i.unit})</option>`).join('');
+const recipeOpts = () => S.recipes.map(r=>`<option value="${r.id}">${r.name} — ${fmtLKR(r.sellPrice)}</option>`).join('');
+
+document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+
+let chartInstance = null;
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(btn) btn.classList.add('active');
+  ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,pricing:renderPricing})[tab]();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const done = S.orders.filter(o=>o.status==='done');
+  const revenue = done.reduce((s,o)=>{ const r=getRecipe(o.recipeId); return s+(r?r.sellPrice*o.qty:0); },0);
+  const cost = done.reduce((s,o)=>{ const r=getRecipe(o.recipeId); return s+(r?calcIngCost(r)*o.qty:0); },0);
+  const pending = S.orders.filter(o=>o.status==='pending').length;
+  const lowStock = S.ingredients.filter(i=>i.stock<1).length;
+  const recentOrders = [...S.orders].reverse().slice(0,5);
+  const lowItems = S.ingredients.filter(i=>i.stock<1);
+
+  document.getElementById('tab-dashboard').innerHTML = `
+    <div class="hero-stat">
+      <div>
+        <div class="hero-stat-label">Total Revenue</div>
+        <div class="hero-stat-main">${fmtLKR(revenue)}</div>
+        <div class="hero-stat-sub">Profit: ${fmtLKR(revenue-cost)} &nbsp;·&nbsp; ${done.length} completed order${done.length!==1?'s':''}</div>
+      </div>
+      <div class="cake-emoji">🎂</div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">Pending Orders</div><div class="metric-val amber">${pending}</div></div>
+      <div class="metric"><div class="metric-label">Low Stock Alerts</div><div class="metric-val ${lowStock>0?'red':'green'}">${lowStock}</div></div>
+      <div class="metric"><div class="metric-label">Recipes</div><div class="metric-val">${S.recipes.length}</div></div>
+      <div class="metric"><div class="metric-label">Shopping Trips</div><div class="metric-val">${S.shoppingTrips.length}</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Recent Orders</span><button class="btn btn-sm btn-primary" onclick="switchTab('orders',document.querySelectorAll('.nav-btn')[4])">View all</button></div>
+        ${recentOrders.map(o=>{ const r=getRecipe(o.recipeId); return `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-light)">
+            <div><div style="font-weight:500;font-size:13px">${o.customer}</div><div style="font-size:11px;color:var(--text-muted)">${r?r.name:''} × ${o.qty} &nbsp;·&nbsp; ${fmtDate(o.dueDate)}</div></div>
+            <span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${o.status}</span>
+          </div>`; }).join('')}
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Stock Alerts</span><button class="btn btn-sm" onclick="switchTab('shopping',document.querySelectorAll('.nav-btn')[2])">Shop now</button></div>
+        ${lowItems.length===0
+          ? '<div class="empty-state">✅ All ingredients well stocked</div>'
+          : lowItems.map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-light)">
+              <span style="font-size:13px">${i.name}</span>
+              <span class="badge badge-danger">${i.stock} ${i.unit} left</span>
+            </div>`).join('')}
+        ${S.shoppingTrips.length>0?`
+          <div class="divider"></div>
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Last shopping trip</div>
+          ${(()=>{ const t=[...S.shoppingTrips].reverse()[0]; return `<div style="font-size:13px">${fmtDate(t.date)} — ${t.shop||'Unnamed shop'} &nbsp; <span style="color:var(--caramel-dark);font-weight:600">${fmtLKR(t.total)}</span></div>`; })()}`:''}
+      </div>
+    </div>`;
+}
+
+// ─── INVENTORY ───────────────────────────────────────────────────────────────
+function renderInventory() {
+  document.getElementById('tab-inventory').innerHTML = `
+    <div class="card">
+      <div class="card-head"><span class="card-title">Ingredients & Stock</span><button class="btn btn-primary btn-sm" onclick="showAddIngredient()">+ Add ingredient</button></div>
+      <table>
+        <thead><tr><th style="width:28%">Name</th><th style="width:12%">Stock</th><th style="width:9%">Unit</th><th style="width:18%">Current price</th><th style="width:12%">Status</th><th style="width:21%"></th></tr></thead>
+        <tbody>${S.ingredients.map(i=>{
+          const hist=S.priceHistory[i.id]||[];
+          const prev=hist.length>1?hist[hist.length-2]:null;
+          const chg=prev?((i.cost-prev.cost)/prev.cost*100):0;
+          const chgHtml=prev&&chg!==0?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'';
+          const st=i.stock<0.5?'danger':i.stock<1?'warn':'ok';
+          return `<tr>
+            <td style="font-weight:500">${i.name}</td><td>${i.stock}</td><td>${i.unit}</td>
+            <td>${fmtLKR(i.cost)} ${chgHtml}</td>
+            <td><span class="badge badge-${st}">${st==='danger'?'Critical':st==='warn'?'Low':'In stock'}</span></td>
+            <td><div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="showPriceHistory(${i.id})">History</button>
+              <button class="btn btn-sm" onclick="showEditIngredient(${i.id})">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this ingredient?'))deleteIng(${i.id})">Del</button>
+            </div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ─── SHOPPING ────────────────────────────────────────────────────────────────
+function renderShopping() {
+  const trips=[...S.shoppingTrips].reverse();
+  document.getElementById('tab-shopping').innerHTML = `
+    <div class="card">
+      <div class="card-head"><span class="card-title">Shopping Trips</span><button class="btn btn-primary btn-sm" onclick="showAddTrip()">+ New trip</button></div>
+      ${trips.length===0?'<div class="empty-state">No shopping trips yet.<br>Add one to start tracking ingredient prices.</div>':''}
+      ${trips.map(t=>`
+        <div class="trip-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div>
+              <div style="font-weight:600;font-size:14px">${fmtDate(t.date)}</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${t.shop||'Unnamed shop'} &nbsp;·&nbsp; ${t.items.length} item${t.items.length!==1?'s':''} &nbsp;·&nbsp; <span style="font-weight:600;color:var(--caramel-dark)">${fmtLKR(t.total)}</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${t.receiptImg?`<img src="${t.receiptImg}" class="receipt-thumb" onclick="viewReceiptFull('${t.id}')" title="View receipt">`:
+                `<div style="width:56px;height:56px;border:1px dashed var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.4">🧾</div>`}
+              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this trip?'))deleteTrip(${t.id})">Del</button>
+            </div>
+          </div>
+          <table style="font-size:12px">
+            <thead><tr><th style="width:40%">Ingredient</th><th style="width:20%">Qty bought</th><th style="width:20%">Unit price</th><th style="width:20%">Change</th></tr></thead>
+            <tbody>${t.items.map(it=>{
+              const ing=getIng(it.ingId);
+              const hist=S.priceHistory[it.ingId]||[];
+              const idx=hist.findIndex(h=>h.date===t.date&&h.cost===it.unitPrice);
+              const prev=idx>0?hist[idx-1]:null;
+              const chg=prev?((it.unitPrice-prev.cost)/prev.cost*100):null;
+              return `<tr><td>${ing?ing.name:'?'}</td><td>${it.qty} ${ing?ing.unit:''}</td><td>${fmtLKR(it.unitPrice)}</td>
+                <td>${chg!==null?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'—'}</td></tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ─── RECIPES ─────────────────────────────────────────────────────────────────
+function renderRecipes() {
+  document.getElementById('tab-recipes').innerHTML = `
+    <div class="card">
+      <div class="card-head"><span class="card-title">Recipes</span><button class="btn btn-primary btn-sm" onclick="showAddRecipe()">+ Add recipe</button></div>
+      <table>
+        <thead><tr><th style="width:28%">Name</th><th style="width:20%">Yield</th><th style="width:16%">Ing. cost</th><th style="width:14%">Sell price</th><th style="width:10%">Margin</th><th style="width:12%"></th></tr></thead>
+        <tbody>${S.recipes.map(r=>{
+          const cost=calcIngCost(r);
+          const margin=r.sellPrice>0?((r.sellPrice-cost)/r.sellPrice*100):0;
+          return `<tr>
+            <td style="font-weight:500">${r.name}</td>
+            <td style="font-size:12px;white-space:normal">${r.yield}</td>
+            <td>${fmtLKR(cost)}</td><td>${fmtLKR(r.sellPrice)}</td>
+            <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${fmtPct(margin)}</span></td>
+            <td><div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="showViewRecipe(${r.id})">View</button>
+              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete recipe?'))deleteRecipe(${r.id})">Del</button>
+            </div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────────────────────
+function renderOrders() {
+  document.getElementById('tab-orders').innerHTML = `
+    <div class="card">
+      <div class="card-head"><span class="card-title">Orders</span><button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button></div>
+      <table>
+        <thead><tr><th style="width:18%">Customer</th><th style="width:22%">Item</th><th style="width:7%">Qty</th><th style="width:14%">Total</th><th style="width:14%">Due</th><th style="width:10%">Status</th><th style="width:15%"></th></tr></thead>
+        <tbody>${S.orders.map(o=>{
+          const r=getRecipe(o.recipeId);
+          const overdue=o.status==='pending'&&o.dueDate<today();
+          return `<tr>
+            <td style="font-weight:500">${o.customer}</td>
+            <td style="white-space:normal;font-size:12px">${r?r.name:''}</td>
+            <td>${o.qty}</td>
+            <td style="font-weight:500">${fmtLKR(r?r.sellPrice*o.qty:0)}</td>
+            <td style="font-size:12px;${overdue?'color:var(--danger);font-weight:600':''}">${fmtDate(o.dueDate)}${overdue?' ⚠️':''}</td>
+            <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${o.status}</span></td>
+            <td><div style="display:flex;gap:4px">
+              <button class="btn btn-sm ${o.status==='pending'?'btn-chocolate':''}" onclick="cycleStatus(${o.id})">${o.status==='pending'?'✓ Done':'Undo'}</button>
+              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete order?'))deleteOrder(${o.id})">Del</button>
+            </div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ─── PRICING ─────────────────────────────────────────────────────────────────
+function renderPricing() {
+  document.getElementById('tab-pricing').innerHTML = `
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Pricing Calculator</span></div>
+        <div class="form-group" style="margin-bottom:12px"><label>Recipe</label><select id="pricing-recipe" onchange="calcPricing()">${recipeOpts()}</select></div>
+        <div class="form-row">
+          <div class="form-group"><label>Overhead %</label><input type="number" id="pricing-overhead" value="20" onchange="calcPricing()"></div>
+          <div class="form-group"><label>Labour (LKR)</label><input type="number" id="pricing-labour" value="500" onchange="calcPricing()"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px"><label>Target margin %</label><input type="number" id="pricing-margin" value="40" onchange="calcPricing()"></div>
+      </div>
+      <div id="pricing-results"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Recipe Margins at a Glance</span></div>
+      <div>${S.recipes.map(r=>{
+        const cost=calcIngCost(r);
+        const m=r.sellPrice>0?Math.max(0,Math.round((r.sellPrice-cost)/r.sellPrice*100)):0;
+        return `<div style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span style="font-weight:500">${r.name}</span>
+            <span style="font-weight:600;color:${m>=40?'var(--success)':'var(--warning)'}">${m}% margin &nbsp; <span style="color:var(--text-muted);font-weight:400">${fmtLKR(r.sellPrice)}</span></span>
+          </div>
+          <div class="profit-bar-wrap"><div class="profit-bar" style="width:${Math.min(100,m)}%;background:${m>=40?'var(--success)':'var(--warning)'}"></div></div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  calcPricing();
+}
+
+function calcPricing() {
+  const r=getRecipe(parseInt(document.getElementById('pricing-recipe').value));
+  if(!r) return;
+  const ic=calcIngCost(r);
+  const ov=parseFloat(document.getElementById('pricing-overhead').value)||0;
+  const lb=parseFloat(document.getElementById('pricing-labour').value)||0;
+  const tm=parseFloat(document.getElementById('pricing-margin').value)||40;
+  const ovc=ic*(ov/100);
+  const tc=ic+ovc+lb;
+  const suggested=tc/(1-tm/100);
+  const actual=r.sellPrice>0?((r.sellPrice-tc)/r.sellPrice*100):0;
+  document.getElementById('pricing-results').innerHTML=`
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><span class="card-title">Cost Breakdown</span></div>
+      ${[['Ingredient cost',fmtLKR(ic),''],['Overhead cost',fmtLKR(ovc),''],['Labour',fmtLKR(lb),''],['Total cost',fmtLKR(tc),'font-weight:600'],['Suggested price ('+fmtPct(tm)+' margin)',fmtLKR(suggested),'font-weight:600;color:var(--success)'],['Current sell price',fmtLKR(r.sellPrice),''],['Actual margin',fmtPct(actual),`font-weight:600;color:${actual>=40?'var(--success)':'var(--danger)'}`]]
+        .map(([k,v,s])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px"><span>${k}</span><span style="${s}">${v}</span></div>`).join('')}
+    </div>`;
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function showModal(html) {
+  document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;
+}
+function closeModal() { document.getElementById('modal-root').innerHTML=''; }
+
+// Add ingredient
+function showAddIngredient() {
+  showModal(`<div class="modal-title">Add Ingredient</div>
+    <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" placeholder="e.g. Almond flour"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>Unit</label><select id="m-unit"><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pcs</option></select></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Cost per unit (LKR)</label><input id="m-cost" type="number" value="0"></div></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem">
+      <button class="btn btn-primary" onclick="saveIngredient()">Add ingredient</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+function saveIngredient() {
+  const name=document.getElementById('m-name').value.trim();
+  if(!name) return alert('Please enter a name.');
+  const id=S.nextIngId++;
+  const cost=parseFloat(document.getElementById('m-cost').value)||0;
+  S.ingredients.push({id,name,stock:parseFloat(document.getElementById('m-stock').value)||0,unit:document.getElementById('m-unit').value,cost});
+  S.priceHistory[id]=[{date:today(),cost}];
+  closeModal(); renderInventory();
+}
+
+// Edit ingredient
+function showEditIngredient(id) {
+  const i=getIng(id);
+  showModal(`<div class="modal-title">Edit Ingredient</div>
+    <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" value="${i.name}"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="${i.stock}" step="0.1"></div>
+      <div class="form-group"><label>Unit</label><select id="m-unit"><option ${i.unit==='kg'?'selected':''}>kg</option><option ${i.unit==='g'?'selected':''}>g</option><option ${i.unit==='L'?'selected':''}>L</option><option ${i.unit==='ml'?'selected':''}>ml</option><option ${i.unit==='pcs'?'selected':''}>pcs</option></select></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Cost per unit (LKR)</label><input id="m-cost" type="number" value="${i.cost}"></div></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem">
+      <button class="btn btn-primary" onclick="saveEditIngredient(${id})">Save changes</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+function saveEditIngredient(id) {
+  const i=getIng(id);
+  const nc=parseFloat(document.getElementById('m-cost').value)||0;
+  i.name=document.getElementById('m-name').value.trim();
+  i.stock=parseFloat(document.getElementById('m-stock').value)||0;
+  i.unit=document.getElementById('m-unit').value;
+  if(nc!==i.cost){ i.cost=nc; if(!S.priceHistory[id])S.priceHistory[id]=[]; S.priceHistory[id].push({date:today(),cost:nc}); }
+  closeModal(); renderInventory();
+}
+function deleteIng(id) { S.ingredients=S.ingredients.filter(i=>i.id!==id); renderInventory(); }
+
+// Price history
+function showPriceHistory(id) {
+  const i=getIng(id);
+  const hist=S.priceHistory[id]||[];
+  showModal(`<div class="modal-title">Price History — ${i.name}</div>
+    <canvas id="ph-chart" height="140" style="margin-bottom:1rem"></canvas>
+    <div style="max-height:220px;overflow-y:auto">
+      ${hist.slice().reverse().map((h,idx,arr)=>{
+        const prev=arr[idx+1];
+        const chg=prev?((h.cost-prev.cost)/prev.cost*100):null;
+        return `<div class="history-row">
+          <span>${fmtDate(h.date)}</span>
+          <span style="font-weight:600">${fmtLKR(h.cost)}</span>
+          ${chg!==null?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'<span style="color:var(--text-muted);font-size:11px">baseline</span>'}
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  setTimeout(()=>{
+    const ctx=document.getElementById('ph-chart'); if(!ctx) return;
+    if(chartInstance) chartInstance.destroy();
+    chartInstance=new Chart(ctx,{type:'line',data:{labels:hist.map(h=>fmtDate(h.date)),datasets:[{label:'LKR',data:hist.map(h=>h.cost),borderColor:'#C8843A',backgroundColor:'rgba(200,132,58,0.1)',tension:0.35,pointRadius:5,pointBackgroundColor:'#C8843A',borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,ticks:{callback:v=>'LKR '+Math.round(v).toLocaleString(),font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
+  },80);
+}
+
+// Shopping trip
+let receiptB64=null, receiptMime=null;
+function showAddTrip() {
+  receiptB64=null; receiptMime=null;
+  showModal(`<div class="modal-title">New Shopping Trip</div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input id="m-tdate" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Shop / Market</label><input id="m-tshop" placeholder="e.g. Keells Super"></div>
+    </div>
+    <div style="margin:12px 0">
+      <label style="display:block;margin-bottom:6px">Receipt Photo</label>
+      <div class="upload-zone" onclick="document.getElementById('receipt-input').click()">
+        <input type="file" id="receipt-input" accept="image/*" style="display:none" onchange="handleReceiptUpload(event)">
+        <div id="receipt-preview" style="color:var(--text-muted);font-size:13px">📷 Tap to upload receipt photo</div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-sm" id="ai-btn" style="display:none" onclick="scanWithAI()">✨ Scan with AI</button>
+        <span id="ai-status" style="font-size:12px;color:var(--text-secondary)"></span>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Items Purchased</div>
+    <div id="trip-rows"></div>
+    <button class="btn btn-sm" style="margin-bottom:12px" onclick="addTripRow()">+ Add item</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveTrip()">Save trip</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+  addTripRow();
+}
+function addTripRow() {
+  const div=document.createElement('div');
+  div.className='ing-row';
+  div.innerHTML=`<select style="flex:2">${ingOpts()}</select><input type="number" placeholder="Qty" step="0.01" value="1" style="width:65px"><input type="number" placeholder="Unit price" step="1" value="0" style="width:110px"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('trip-rows').appendChild(div);
+}
+function handleReceiptUpload(e) {
+  const file=e.target.files[0]; if(!file) return;
+  receiptMime=file.type;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    receiptB64=ev.target.result.split(',')[1];
+    document.getElementById('receipt-preview').innerHTML=`<img src="${ev.target.result}" style="max-height:100px;border-radius:8px"><br><span style="font-size:11px;color:var(--text-muted)">${file.name}</span>`;
+    document.getElementById('ai-btn').style.display='inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+async function scanWithAI() {
+  if(!receiptB64) return;
+  const btn=document.getElementById('ai-btn');
+  const status=document.getElementById('ai-status');
+  btn.disabled=true;
+  status.innerHTML=`<span class="spinner"></span> Reading receipt...`;
+  const ingList=S.ingredients.map(i=>`${i.id}: ${i.name} (${i.unit})`).join('\n');
+  try {
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:receiptMime,data:receiptB64}},{type:"text",text:`Read this grocery receipt for a cake shop.\nOur ingredients:\n${ingList}\n\nMatch receipt items to our ingredients. Return ONLY valid JSON array, no markdown:\n[{"ingId":1,"qty":2,"unitPrice":220}]\nIf no match, return [].`}]}]})});
+    const data=await res.json();
+    const text=data.content.filter(c=>c.type==='text').map(c=>c.text).join('');
+    const items=JSON.parse(text.replace(/```json|```/g,'').trim());
+    if(!Array.isArray(items)||items.length===0){
+      status.innerHTML='<span style="color:var(--warning)">No matches found — add items manually.</span>';
+      btn.disabled=false; return;
+    }
+    document.getElementById('trip-rows').innerHTML='';
+    items.forEach(it=>{
+      const div=document.createElement('div');
+      div.className='ing-row';
+      div.innerHTML=`<select style="flex:2">${ingOpts(it.ingId)}</select><input type="number" value="${it.qty}" step="0.01" style="width:65px"><input type="number" value="${it.unitPrice}" step="1" style="width:110px"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>`;
+      document.getElementById('trip-rows').appendChild(div);
+    });
+    status.innerHTML=`<span style="color:var(--success)">✓ Found ${items.length} item${items.length!==1?'s':''}. Review below.</span>`;
+  } catch(err){
+    status.innerHTML=`<span style="color:var(--danger)">Error: ${err.message}</span>`;
+  }
+  btn.disabled=false;
+}
+function saveTrip() {
+  const date=document.getElementById('m-tdate').value;
+  const shop=document.getElementById('m-tshop').value;
+  const rows=document.querySelectorAll('#trip-rows .ing-row');
+  const items=[]; let total=0;
+  rows.forEach(row=>{
+    const sel=row.querySelector('select');
+    const ins=row.querySelectorAll('input[type=number]');
+    if(!sel||ins.length<2) return;
+    const ingId=parseInt(sel.value),qty=parseFloat(ins[0].value)||0,up=parseFloat(ins[1].value)||0;
+    items.push({ingId,qty,unitPrice:up}); total+=qty*up;
+    const ing=getIng(ingId);
+    if(ing){ if(up>0&&up!==ing.cost){ ing.cost=up; if(!S.priceHistory[ingId])S.priceHistory[ingId]=[]; const last=S.priceHistory[ingId].slice(-1)[0]; if(!last||last.cost!==up)S.priceHistory[ingId].push({date,cost:up}); } ing.stock=parseFloat((ing.stock+qty).toFixed(3)); }
+  });
+  S.shoppingTrips.push({id:S.nextTripId++,date,shop,items,total,receiptImg:receiptB64?`data:${receiptMime};base64,${receiptB64}`:null});
+  closeModal(); renderShopping();
+}
+function deleteTrip(id){ S.shoppingTrips=S.shoppingTrips.filter(t=>t.id!==id); renderShopping(); }
+function viewReceiptFull(id) {
+  const t=S.shoppingTrips.find(x=>x.id==id); if(!t||!t.receiptImg) return;
+  showModal(`<div class="modal-title">Receipt — ${fmtDate(t.date)}, ${t.shop}</div>
+    <img src="${t.receiptImg}" style="width:100%;border-radius:var(--radius);margin-bottom:1rem">
+    <button class="btn" onclick="closeModal()">Close</button>`);
+}
+
+// Recipes
+function showAddRecipe() {
+  showModal(`<div class="modal-title">Add Recipe</div>
+    <div class="form-row"><div class="form-group"><label>Recipe name</label><input id="m-rname"></div></div>
+    <div class="form-row"><div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)"></div></div>
+    <div class="form-row"><div class="form-group"><label>Sell price (LKR)</label><input id="m-rprice" type="number" value="0"></div></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 8px">Ingredients</div>
+    <div id="m-ings"></div>
+    <button class="btn btn-sm" onclick="addRecipeIngRow()" style="margin-bottom:12px">+ Add ingredient</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveRecipe()">Save recipe</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+  addRecipeIngRow();
+}
+function addRecipeIngRow() {
+  const div=document.createElement('div'); div.className='ing-row';
+  div.innerHTML=`<select style="flex:2">${ingOpts()}</select><input type="number" placeholder="Qty" step="0.01" value="0.1" style="width:80px"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('m-ings').appendChild(div);
+}
+function saveRecipe() {
+  const name=document.getElementById('m-rname').value.trim(); if(!name) return;
+  const ings=[]; document.querySelectorAll('#m-ings .ing-row').forEach(row=>{ const s=row.querySelector('select'),i=row.querySelector('input[type=number]'); if(s&&i)ings.push({ingId:parseInt(s.value),qty:parseFloat(i.value)||0}); });
+  S.recipes.push({id:S.nextRecipeId++,name,yield:document.getElementById('m-ryield').value||'1 unit',sellPrice:parseFloat(document.getElementById('m-rprice').value)||0,ingredients:ings});
+  closeModal(); renderRecipes();
+}
+function showViewRecipe(id) {
+  const r=getRecipe(id); if(!r) return;
+  const cost=calcIngCost(r);
+  showModal(`<div class="modal-title">${r.name}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Yield: ${r.yield}</div>
+    ${r.ingredients.map(ri=>{ const i=getIng(ri.ingId); return i?`<div class="history-row"><span>${i.name} — ${ri.qty} ${i.unit}</span><span style="font-weight:500">${fmtLKR(i.cost*ri.qty)}</span></div>`:''; }).join('')}
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0"><span>Ingredient cost</span><span>${fmtLKR(cost)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0;color:var(--success)"><span>Sell price</span><span>${fmtLKR(r.sellPrice)}</span></div>
+    <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
+}
+function deleteRecipe(id){ S.recipes=S.recipes.filter(r=>r.id!==id); renderRecipes(); }
+
+// Orders
+function showAddOrder() {
+  showModal(`<div class="modal-title">New Order</div>
+    <div class="form-row"><div class="form-group"><label>Customer name</label><input id="m-ocust"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Recipe</label><select id="m-orec">${recipeOpts()}</select></div>
+      <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="1" min="1"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${today()}"></div></div>
+    <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" placeholder="Special requests..."></div></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem">
+      <button class="btn btn-primary" onclick="saveOrder()">Place order</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+function saveOrder() {
+  const customer=document.getElementById('m-ocust').value.trim(); if(!customer) return;
+  S.orders.push({id:S.nextOrderId++,customer,recipeId:parseInt(document.getElementById('m-orec').value),qty:parseInt(document.getElementById('m-oqty').value)||1,note:document.getElementById('m-onote').value,dueDate:document.getElementById('m-odate').value,status:'pending'});
+  closeModal(); renderOrders();
+}
+function cycleStatus(id){ const o=S.orders.find(x=>x.id===id); if(o) o.status=o.status==='pending'?'done':'pending'; renderOrders(); }
+function deleteOrder(id){ S.orders=S.orders.filter(o=>o.id!==id); renderOrders(); }
+
+// Boot
+renderDashboard();
+</script>
+</body>
+</html>
