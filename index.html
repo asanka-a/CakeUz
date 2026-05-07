@@ -118,6 +118,60 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 <div id="modal-root"></div>
 
 <script>
+
+// ═══════════════════════════════════════════════════════
+// GOOGLE SHEETS API — paste your deployed Web App URL below
+// ═══════════════════════════════════════════════════════
+const API_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+const DB_ENABLED = API_URL !== 'YOUR_APPS_SCRIPT_URL_HERE';
+
+async function dbGet(action) {
+  if (!DB_ENABLED) return null;
+  try {
+    const res = await fetch(`${API_URL}?action=${action}`);
+    return await res.json();
+  } catch(e) { console.error('DB GET error:', e); return null; }
+}
+
+async function dbPost(action, data) {
+  if (!DB_ENABLED) return null;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, data })
+    });
+    return await res.json();
+  } catch(e) { console.error('DB POST error:', e); return null; }
+}
+
+// Banner shown when not connected
+function showDbBanner() {
+  if (DB_ENABLED) return;
+  const banner = document.createElement('div');
+  banner.id = 'db-banner';
+  banner.innerHTML = `<span>⚠️ Running in demo mode — data will reset on refresh. <a href="https://github.com/yourusername/cakeuz#setup" target="_blank" style="color:var(--caramel);font-weight:600">Connect Google Sheets →</a></span>`;
+  banner.style.cssText = 'background:#FEF3D8;border-bottom:1px solid var(--caramel-light);padding:8px 2rem;font-size:12px;color:var(--text-secondary);text-align:center;';
+  document.querySelector('.nav-wrap').after(banner);
+}
+
+// Loading overlay
+function showLoading(msg) {
+  let el = document.getElementById('db-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'db-loading';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(249,249,251,0.85);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--caramel);border-radius:50%;animation:spin 0.7s linear infinite"></div><div style="font-size:14px;color:var(--text-secondary);font-family:'DM Sans',sans-serif">${msg}</div>`;
+  el.style.display = 'flex';
+}
+function hideLoading() {
+  const el = document.getElementById('db-loading');
+  if (el) el.style.display = 'none';
+}
+
+
 // ─── CURRENCY ────────────────────────────────────────────────────────────────
 const CURRENCY = 'SGD';
 const fmtMoney = n => CURRENCY + ' ' + (Math.round(n*100)/100).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -415,7 +469,7 @@ function renderActivityLog(){
         <span class="card-title">Activity Log</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--text-muted)">${activityLog.length} entries</span>
-          ${activityLog.length>0?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Clear all log entries?')){activityLog.length=0;renderActivityLog()}">Clear log</button>`:''}
+          ${activityLog.length>0?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Clear all log entries?')){activityLog.length=0;dbPost('clearLog',{});renderActivityLog()}">Clear log</button>`:''}
         </div>
       </div>
       ${activityLog.length===0
@@ -460,6 +514,8 @@ function saveIngredient(){
   S.ingredients.push({id,name,stock,unit,cost});
   S.priceHistory[id]=[{date:today(),cost}];
   logAction('add','Ingredient added',`${name} — ${fmtMoney(cost)}/${unit}, stock: ${stock} ${unit}`);
+  dbPost('addIngredient', {id, name, stock, unit, cost, date:today()});
+  dbPost('addLog', activityLog[0]);
   closeModal(); renderInventory();
 }
 
@@ -488,11 +544,15 @@ function saveEditIngredient(id){
   if(nc!==oldCost){ i.cost=nc; if(!S.priceHistory[id])S.priceHistory[id]=[]; S.priceHistory[id].push({date:today(),cost:nc}); detail+=` — price: ${fmtMoney(oldCost)} → ${fmtMoney(nc)}`; }
   if(i.stock!==oldStock) detail+=` — stock: ${oldStock} → ${i.stock} ${i.unit}`;
   logAction('edit','Ingredient updated',detail);
+  dbPost('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged:nc!==oldCost, date:today()});
+  dbPost('addLog', activityLog[0]);
   closeModal(); renderInventory();
 }
 function deleteIng(id){
   const i=getIng(id);
   logAction('delete','Ingredient deleted',i?i.name:'unknown');
+  dbPost('deleteIngredient', {id});
+  dbPost('addLog', activityLog[0]);
   S.ingredients=S.ingredients.filter(x=>x.id!==id); renderInventory();
 }
 
@@ -602,13 +662,18 @@ function saveTrip(){
     }
   });
   const tripId=S.nextTripId++;
-  S.shoppingTrips.push({id:tripId,date,shop,items,total,receiptImg:receiptB64?`data:${receiptMime};base64,${receiptB64}`:null});
+  const receiptImg = receiptB64?`data:${receiptMime};base64,${receiptB64}`:null;
+  S.shoppingTrips.push({id:tripId,date,shop,items,total,receiptImg});
   logAction('shop','Shopping trip saved',`${shop||'Unnamed shop'} — ${items.length} items, total ${fmtMoney(total)}`);
+  dbPost('addShoppingTrip', {date, shop, total, items, receiptImg: receiptImg||''});
+  dbPost('addLog', activityLog[0]);
   closeModal(); renderShopping();
 }
 function deleteTrip(id){
   const t=S.shoppingTrips.find(x=>x.id===id);
   logAction('delete','Shopping trip deleted',t?`${fmtDate(t.date)} — ${t.shop}`:'');
+  dbPost('deleteShoppingTrip', {id});
+  dbPost('addLog', activityLog[0]);
   S.shoppingTrips=S.shoppingTrips.filter(x=>x.id!==id); renderShopping();
 }
 function viewReceiptFull(id){
@@ -642,6 +707,9 @@ function saveRecipe(){
   const sellPrice=parseFloat(document.getElementById('m-rprice').value)||0;
   S.recipes.push({id:S.nextRecipeId++,name,yield:document.getElementById('m-ryield').value||'1 unit',sellPrice,ingredients:ings});
   logAction('add','Recipe added',`${name} — sell price ${fmtMoney(sellPrice)}, ${ings.length} ingredients`);
+  const newRec = S.recipes[S.recipes.length-1];
+  dbPost('addRecipe', {name:newRec.name, yield:newRec.yield, sellPrice:newRec.sellPrice, ingredients:newRec.ingredients});
+  dbPost('addLog', activityLog[0]);
   closeModal(); renderRecipes();
 }
 function showViewRecipe(id){
@@ -658,6 +726,8 @@ function showViewRecipe(id){
 function deleteRecipe(id){
   const r=getRecipe(id);
   logAction('delete','Recipe deleted',r?r.name:'');
+  dbPost('deleteRecipe', {id});
+  dbPost('addLog', activityLog[0]);
   S.recipes=S.recipes.filter(x=>x.id!==id); renderRecipes();
 }
 
@@ -682,6 +752,9 @@ function saveOrder(){
   const r=getRecipe(recipeId);
   S.orders.push({id:S.nextOrderId++,customer,recipeId,qty,note:document.getElementById('m-onote').value,dueDate:document.getElementById('m-odate').value,status:'pending'});
   logAction('order','Order placed',`${customer} — ${r?r.name:''} × ${qty}, total ${fmtMoney(r?r.sellPrice*qty:0)}`);
+  const newOrd = S.orders[S.orders.length-1];
+  dbPost('addOrder', {customer:newOrd.customer, recipeId:newOrd.recipeId, qty:newOrd.qty, note:newOrd.note, dueDate:newOrd.dueDate});
+  dbPost('addLog', activityLog[0]);
   closeModal(); renderOrders();
 }
 function cycleStatus(id){
@@ -689,15 +762,50 @@ function cycleStatus(id){
   const r=getRecipe(o.recipeId);
   const prev=o.status; o.status=o.status==='pending'?'done':'pending';
   logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`);
+  dbPost('updateOrderStatus', {id:o.id, status:o.status});
+  dbPost('addLog', activityLog[0]);
   renderOrders();
 }
 function deleteOrder(id){
   const o=S.orders.find(x=>x.id===id);
   logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'');
+  dbPost('deleteOrder', {id});
+  dbPost('addLog', activityLog[0]);
   S.orders=S.orders.filter(x=>x.id!==id); renderOrders();
 }
 
-renderDashboard();
+
+// ─── BOOT ─────────────────────────────────────────────────────
+async function init() {
+  showDbBanner();
+  if (DB_ENABLED) {
+    showLoading('Loading your data...');
+    const result = await dbGet('load');
+    if (result && result.ok) {
+      // Restore state from Google Sheets
+      if (result.ingredients.length) S.ingredients = result.ingredients;
+      if (result.recipes.length) S.recipes = result.recipes;
+      if (result.orders.length) S.orders = result.orders;
+      if (result.shoppingTrips.length) S.shoppingTrips = result.shoppingTrips;
+      if (Object.keys(result.priceHistory).length) S.priceHistory = result.priceHistory;
+      if (result.activityLog.length) {
+        activityLog.length = 0;
+        result.activityLog.forEach(l => activityLog.push(l));
+      }
+      // Update next IDs
+      if (S.ingredients.length) S.nextIngId = Math.max(...S.ingredients.map(i=>i.id)) + 1;
+      if (S.recipes.length) S.nextRecipeId = Math.max(...S.recipes.map(r=>r.id)) + 1;
+      if (S.orders.length) S.nextOrderId = Math.max(...S.orders.map(o=>o.id)) + 1;
+      if (S.shoppingTrips.length) S.nextTripId = Math.max(...S.shoppingTrips.map(t=>t.id)) + 1;
+    } else {
+      console.warn('Could not load from Sheets — using demo data');
+    }
+    hideLoading();
+  }
+  renderDashboard();
+}
+init();
+
 </script>
 </body>
 </html>
