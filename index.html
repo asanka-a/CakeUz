@@ -133,12 +133,14 @@ async function dbGet(action) {
   } catch(e) { console.error('DB GET error:', e); return null; }
 }
 
-async function dbPost(action, data) {
+async function dbPost(action, data, log) {
   if (!DB_ENABLED) return null;
   try {
+    const payload = { action, data };
+    if (log) payload.log = log;
     const res = await fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ action, data })
+      body: JSON.stringify(payload)
     });
     return await res.json();
   } catch(e) { console.error('DB POST error:', e); return null; }
@@ -191,9 +193,11 @@ function showToast(msg, kind) {
 }
 
 // Persist with error surfacing. Returns true on success, false on failure.
-async function persistWrite(action, data) {
+// Pass an optional `log` entry to piggyback an activity-log write in the same
+// POST — saves one round trip per save action.
+async function persistWrite(action, data, log) {
   if (!DB_ENABLED) return false;
-  const res = await dbPost(action, data);
+  const res = await dbPost(action, data, log);
   if (!res || res.ok !== true) {
     const err = (res && res.error) || 'connection error';
     showToast('Save failed (' + action + '): ' + err, 'error');
@@ -261,6 +265,12 @@ const S = {
   nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1
 };
 
+// HTML-escape for any user-typed string going into innerHTML or attribute values.
+// Without this, an ingredient/customer/note containing < or " could execute scripts.
+function esc(s){
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
 const fmtPct = n => Math.round(n)+"%";
 // Accepts plain "YYYY-MM-DD" OR ISO timestamps coming back from Apps Script.
 const fmtDate = d => {
@@ -295,8 +305,8 @@ function calcRecipeLineCost(ri){
   return i.cost * qtyInStorage;
 }
 const calcIngCost = r => (r.ingredients || []).reduce((s,ri)=> s + calcRecipeLineCost(ri), 0);
-const ingOpts = (sel=null) => S.ingredients.map(i=>`<option value="${i.id}"${sel===i.id?' selected':''}>${i.name} (${i.unit})</option>`).join('');
-const recipeOpts = () => S.recipes.map(r=>`<option value="${r.id}">${r.name} — ${fmtMoney(r.sellPrice)}</option>`).join('');
+const ingOpts = (sel=null) => S.ingredients.map(i=>`<option value="${i.id}"${sel===i.id?' selected':''}>${esc(i.name)} (${esc(i.unit)})</option>`).join('');
+const recipeOpts = () => S.recipes.map(r=>`<option value="${r.id}">${esc(r.name)} — ${fmtMoney(r.sellPrice)}</option>`).join('');
 
 document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
 
@@ -349,18 +359,18 @@ function renderDashboard(){
         <div class="card-head"><span class="card-title">Recent Orders</span></div>
         ${recentOrders.map(o=>{ const r=getRecipe(o.recipeId); return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-light)">
-            <div><div style="font-weight:500;font-size:13px">${o.customer}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${r?r.name:''} × ${o.qty} &nbsp;·&nbsp; ${fmtDate(o.dueDate)}</div></div>
-            <span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${o.status}</span>
+            <div><div style="font-weight:500;font-size:13px">${esc(o.customer)}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${r?esc(r.name):''} × ${o.qty} &nbsp;·&nbsp; ${fmtDate(o.dueDate)}</div></div>
+            <span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span>
           </div>`; }).join('')}
       </div>
       <div class="card">
         <div class="card-head"><span class="card-title">Stock Alerts</span></div>
         ${lowItems.length===0?'<div class="empty-state">✅ All ingredients well stocked</div>'
           :lowItems.map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-light)">
-            <span style="font-size:13px">${i.name}</span><span class="badge badge-danger">${i.stock} ${i.unit} left</span></div>`).join('')}
+            <span style="font-size:13px">${esc(i.name)}</span><span class="badge badge-danger">${i.stock} ${esc(i.unit)} left</span></div>`).join('')}
         ${activityLog.length>0?`<div class="divider"></div><div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Latest activity</div>
-          ${activityLog.slice(0,3).map(l=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border-light);color:var(--text-secondary)"><span style="font-weight:600;color:var(--text-primary)">${l.action}</span> — ${l.detail}<br><span style="font-size:10px;color:var(--text-muted)">${l.time}</span></div>`).join('')}`:''}
+          ${activityLog.slice(0,3).map(l=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border-light);color:var(--text-secondary)"><span style="font-weight:600;color:var(--text-primary)">${esc(l.action)}</span> — ${esc(l.detail)}<br><span style="font-size:10px;color:var(--text-muted)">${esc(l.time)}</span></div>`).join('')}`:''}
       </div>
     </div>`;
 }
@@ -379,7 +389,7 @@ function renderInventory(){
           const chgHtml=prev&&chg!==0?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'';
           const st=i.stock<0.5?'danger':i.stock<1?'warn':'ok';
           return `<tr>
-            <td style="font-weight:500">${i.name}</td><td>${i.stock}</td><td>${i.unit}</td>
+            <td style="font-weight:500">${esc(i.name)}</td><td>${i.stock}</td><td>${esc(i.unit)}</td>
             <td>${fmtMoney(i.cost)} ${chgHtml}</td>
             <td><span class="badge badge-${st}">${st==='danger'?'Critical':st==='warn'?'Low':'In stock'}</span></td>
             <td><div style="display:flex;gap:4px">
@@ -404,7 +414,7 @@ function renderShopping(){
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
             <div>
               <div style="font-weight:600;font-size:14px">${fmtDate(t.date)}</div>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${t.shop||'Unnamed shop'} &nbsp;·&nbsp; ${t.items.length} item${t.items.length!==1?'s':''} &nbsp;·&nbsp; <span style="font-weight:600;color:var(--caramel-dark)">${fmtMoney(t.total)}</span></div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${esc(t.shop||'Unnamed shop')} &nbsp;·&nbsp; ${t.items.length} item${t.items.length!==1?'s':''} &nbsp;·&nbsp; <span style="font-weight:600;color:var(--caramel-dark)">${fmtMoney(t.total)}</span></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               ${t.receiptImg?`<img src="${t.receiptImg}" class="receipt-thumb" onclick="viewReceiptFull(${t.id})" title="View receipt">`:'<div style="width:56px;height:56px;border:1px dashed var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.4">🧾</div>'}
@@ -419,7 +429,7 @@ function renderShopping(){
               const idx=hist.findIndex(h=>h.date===t.date&&h.cost===it.unitPrice);
               const prev=idx>0?hist[idx-1]:null;
               const chg=prev?((it.unitPrice-prev.cost)/prev.cost*100):null;
-              return `<tr><td>${ing?ing.name:'?'}</td><td>${it.qty} ${ing?ing.unit:''}</td><td>${fmtMoney(it.unitPrice)}</td>
+              return `<tr><td>${ing?esc(ing.name):'?'}</td><td>${it.qty} ${ing?esc(ing.unit):''}</td><td>${fmtMoney(it.unitPrice)}</td>
                 <td>${chg!==null?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'—'}</td></tr>`;
             }).join('')}</tbody>
           </table>
@@ -438,8 +448,8 @@ function renderRecipes(){
           const cost=calcIngCost(r);
           const margin=r.sellPrice>0?((r.sellPrice-cost)/r.sellPrice*100):0;
           return `<tr>
-            <td style="font-weight:500">${r.name}</td>
-            <td style="font-size:12px;white-space:normal">${r.yield}</td>
+            <td style="font-weight:500">${esc(r.name)}</td>
+            <td style="font-size:12px;white-space:normal">${esc(r.yield)}</td>
             <td>${fmtMoney(cost)}</td><td>${fmtMoney(r.sellPrice)}</td>
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${fmtPct(margin)}</span></td>
             <td><div style="display:flex;gap:4px">
@@ -482,15 +492,15 @@ function renderOrders(){
           const cost = parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
           const margin = sell > 0 ? Math.round((sell - cost) / sell * 100) : 0;
           return `<tr>
-            <td style="font-weight:500">${o.customer}</td>
-            <td style="font-size:11px;color:var(--text-secondary)">${o.customerPhone || '—'}</td>
-            <td style="white-space:normal;font-size:12px">${r ? r.name : '?'}</td>
+            <td style="font-weight:500">${esc(o.customer)}</td>
+            <td style="font-size:11px;color:var(--text-secondary)">${esc(o.customerPhone || '—')}</td>
+            <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
             <td>${o.qty}</td>
             <td style="font-weight:500">${fmtMoney(sell)}</td>
             <td style="color:var(--text-secondary)">${fmtMoney(cost)}</td>
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${margin}%</span></td>
             <td style="font-size:12px;${overdue?'color:var(--danger);font-weight:600':''}">${fmtDate(o.dueDate)}${overdue?' ⚠️':''}</td>
-            <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${o.status}</span></td>
+            <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span></td>
             <td><div style="display:flex;gap:4px;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button>
               <button class="btn btn-sm ${o.status==='pending'?'btn-chocolate':''}" onclick="cycleStatus(${o.id})">${o.status==='pending'?'✓ Done':'Undo'}</button>
@@ -523,7 +533,7 @@ function renderPricing(){
         const m=r.sellPrice>0?Math.max(0,Math.round((r.sellPrice-cost)/r.sellPrice*100)):0;
         return `<div style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-            <span style="font-weight:500">${r.name}</span>
+            <span style="font-weight:500">${esc(r.name)}</span>
             <span style="font-weight:600;color:${m>=40?'var(--success)':'var(--warning)'}">${m}% &nbsp;<span style="color:var(--text-muted);font-weight:400">${fmtMoney(r.sellPrice)}</span></span>
           </div>
           <div class="profit-bar-wrap"><div class="profit-bar" style="width:${Math.min(100,m)}%;background:${m>=40?'var(--success)':'var(--warning)'}"></div></div>
@@ -572,10 +582,10 @@ function renderActivityLog(){
             <div class="log-dot ${typeColors[l.type]||'log-edit'}"></div>
             <div style="flex:1">
               <div style="display:flex;justify-content:space-between;align-items:baseline">
-                <span class="log-action">${l.action}</span>
-                <span class="log-time">${l.time}</span>
+                <span class="log-action">${esc(l.action)}</span>
+                <span class="log-time">${esc(l.time)}</span>
               </div>
-              <div class="log-detail">${l.detail}</div>
+              <div class="log-detail">${esc(l.detail)}</div>
             </div>
           </div>`).join('')}
     </div>`;
@@ -624,17 +634,14 @@ async function saveIngredient(){
   S.priceHistory[id]=[{date:today(),cost}];
   logAction('add','Ingredient added',`${name} — ${stock} ${unit} for ${fmtMoney(price)} (${fmtMoney(cost)}/${unit})`);
   closeModal(); renderInventory();
-  await Promise.all([
-    persistWrite('addIngredient', {id, name, stock, unit, cost, date:today()}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('addIngredient', {id, name, stock, unit, cost, date:today()}, activityLog[0]);
 }
 
 function showEditIngredient(id){
   const i=getIng(id);
-  showModal(`<div class="modal-title">Edit ${i.name}</div>
+  showModal(`<div class="modal-title">Edit ${esc(i.name)}</div>
     <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Current values</div>
-    <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" value="${i.name}"></div></div>
+    <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" value="${esc(i.name)}"></div></div>
     <div class="form-row">
       <div class="form-group"><label>Storage unit</label><select id="m-unit">${unitOptionsHtml(i.unit)}</select></div>
       <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="${i.stock}" step="0.001"></div>
@@ -698,25 +705,19 @@ async function saveEditIngredient(id){
   if (newUnit !== oldUnit) detail += ` — unit: ${oldUnit} → ${newUnit}`;
   logAction('edit','Ingredient updated', detail);
   closeModal(); renderInventory();
-  await Promise.all([
-    persistWrite('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged, date:today()}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged, date:today()}, activityLog[0]);
 }
 async function deleteIng(id){
   const i=getIng(id);
   logAction('delete','Ingredient deleted',i?i.name:'unknown');
   S.ingredients=S.ingredients.filter(x=>x.id!==id); renderInventory();
-  await Promise.all([
-    persistWrite('deleteIngredient', {id}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('deleteIngredient', {id}, activityLog[0]);
 }
 
 function showPriceHistory(id){
   const i=getIng(id);
   const hist=S.priceHistory[id]||[];
-  showModal(`<div class="modal-title">Price History — ${i.name}</div>
+  showModal(`<div class="modal-title">Price History — ${esc(i.name)}</div>
     <canvas id="ph-chart" height="140" style="margin-bottom:1rem"></canvas>
     <div style="max-height:220px;overflow-y:auto">
       ${hist.slice().reverse().map((h,idx,arr)=>{
@@ -796,7 +797,7 @@ function handleReceiptUpload(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     receiptB64=ev.target.result.split(',')[1];
-    document.getElementById('receipt-preview').innerHTML=`<img src="${ev.target.result}" style="max-height:100px;border-radius:8px"><br><span style="font-size:11px;color:var(--text-muted)">${file.name}</span>`;
+    document.getElementById('receipt-preview').innerHTML=`<img src="${ev.target.result}" style="max-height:100px;border-radius:8px"><br><span style="font-size:11px;color:var(--text-muted)">${esc(file.name)}</span>`;
     document.getElementById('ai-btn').style.display='inline-block';
   };
   reader.readAsDataURL(file);
@@ -864,23 +865,17 @@ async function saveTrip(){
   S.shoppingTrips.push({id:tripId,date,shop,items,total,receiptImg});
   logAction('shop','Shopping trip saved',`${shop||'Unnamed shop'} — ${items.length} items, total ${fmtMoney(total)}`);
   closeModal(); renderShopping();
-  await Promise.all([
-    persistWrite('addShoppingTrip', {id:tripId, date, shop, total, items, receiptImg: receiptImg||''}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('addShoppingTrip', {id:tripId, date, shop, total, items, receiptImg: receiptImg||''}, activityLog[0]);
 }
 async function deleteTrip(id){
   const t=S.shoppingTrips.find(x=>x.id===id);
   logAction('delete','Shopping trip deleted',t?`${fmtDate(t.date)} — ${t.shop}`:'');
   S.shoppingTrips=S.shoppingTrips.filter(x=>x.id!==id); renderShopping();
-  await Promise.all([
-    persistWrite('deleteShoppingTrip', {id}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('deleteShoppingTrip', {id}, activityLog[0]);
 }
 function viewReceiptFull(id){
   const t=S.shoppingTrips.find(x=>x.id===id); if(!t||!t.receiptImg) return;
-  showModal(`<div class="modal-title">Receipt — ${fmtDate(t.date)}, ${t.shop}</div><img src="${t.receiptImg}" style="width:100%;border-radius:var(--radius);margin-bottom:1rem"><button class="btn" onclick="closeModal()">Close</button>`);
+  showModal(`<div class="modal-title">Receipt — ${fmtDate(t.date)}, ${esc(t.shop)}</div><img src="${esc(t.receiptImg)}" style="width:100%;border-radius:var(--radius);margin-bottom:1rem"><button class="btn" onclick="closeModal()">Close</button>`);
 }
 
 function showAddRecipe(){
@@ -894,8 +889,8 @@ function showEditRecipe(id){
 function showRecipeForm(r, mode){
   const isEdit = mode === 'Edit';
   showModal(`<div class="modal-title">${mode} Recipe</div>
-    <div class="form-row"><div class="form-group"><label>Recipe name</label><input id="m-rname" value="${r.name||''}"></div></div>
-    <div class="form-row"><div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${r.yield||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>Recipe name</label><input id="m-rname" value="${esc(r.name||'')}"></div></div>
+    <div class="form-row"><div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${esc(r.yield||'')}"></div></div>
     <div class="form-row"><div class="form-group"><label>Sell price (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div></div>
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 8px">Ingredients</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Pick any compatible unit per ingredient — the system converts at costing time.</div>
@@ -957,10 +952,7 @@ async function saveRecipe(){
   S.recipes.push(recipe);
   logAction('add','Recipe added',`${name} — sell price ${fmtMoney(sellPrice)}, ${ings.length} ingredients`);
   closeModal(); renderRecipes();
-  await Promise.all([
-    persistWrite('addRecipe', recipe),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('addRecipe', recipe, activityLog[0]);
 }
 async function saveEditRecipe(id){
   const r = getRecipe(id);
@@ -974,10 +966,7 @@ async function saveEditRecipe(id){
   r.ingredients = ings;
   logAction('edit','Recipe updated',`${name} — sell price ${fmtMoney(r.sellPrice)}, ${ings.length} ingredients`);
   closeModal(); renderRecipes();
-  await Promise.all([
-    persistWrite('editRecipe', { id, name: r.name, yield: r.yield, sellPrice: r.sellPrice, ingredients: ings }),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('editRecipe', { id, name: r.name, yield: r.yield, sellPrice: r.sellPrice, ingredients: ings }, activityLog[0]);
 }
 function showViewRecipe(id){
   const r=getRecipe(id); if(!r) return;
@@ -987,11 +976,11 @@ function showViewRecipe(id){
     if (!i) return `<div class="history-row"><span style="color:var(--danger)">⚠ Missing ingredient (id ${ri.ingId})</span><span>—</span></div>`;
     const unit = ri.unit || i.unit;
     const lineCost = calcRecipeLineCost(ri);
-    return `<div class="history-row"><span>${i.name} — ${ri.qty} ${unit}</span><span style="font-weight:500">${fmtMoney(lineCost)}</span></div>`;
+    return `<div class="history-row"><span>${esc(i.name)} — ${ri.qty} ${esc(unit)}</span><span style="font-weight:500">${fmtMoney(lineCost)}</span></div>`;
   }).join('');
   const margin = r.sellPrice > 0 ? Math.round((r.sellPrice - cost) / r.sellPrice * 100) : 0;
-  showModal(`<div class="modal-title">${r.name}</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Yield: ${r.yield}</div>
+  showModal(`<div class="modal-title">${esc(r.name)}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Yield: ${esc(r.yield)}</div>
     ${rows}
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0"><span>Ingredient cost</span><span>${fmtMoney(cost)}</span></div>
@@ -1006,10 +995,7 @@ async function deleteRecipe(id){
   const r=getRecipe(id);
   logAction('delete','Recipe deleted',r?r.name:'');
   S.recipes=S.recipes.filter(x=>x.id!==id); renderRecipes();
-  await Promise.all([
-    persistWrite('deleteRecipe', {id}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('deleteRecipe', {id}, activityLog[0]);
 }
 
 function showAddOrder(){
@@ -1106,10 +1092,7 @@ async function saveOrder(){
   S.orders.push(order);
   logAction('order','Order placed',`${customer} — ${r.name} × ${qty}, sell ${fmtMoney(r.sellPrice*qty)}, cost ${fmtMoney(snap.ingredientCost)}`);
   closeModal(); renderOrders();
-  await Promise.all([
-    persistWrite('addOrder', order),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('addOrder', order, activityLog[0]);
 }
 async function cycleStatus(id){
   const o=S.orders.find(x=>x.id===id); if(!o) return;
@@ -1144,19 +1127,13 @@ async function cycleStatus(id){
   o.completedDate = movingToDone ? today() : '';
   logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`);
   renderOrders();
-  await Promise.all([
-    persistWrite('updateOrderStatus', { id: o.id, status: o.status, completedDate: o.completedDate, stockDeltas }),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('updateOrderStatus', { id: o.id, status: o.status, completedDate: o.completedDate, stockDeltas }, activityLog[0]);
 }
 async function deleteOrder(id){
   const o=S.orders.find(x=>x.id===id);
   logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'');
   S.orders=S.orders.filter(x=>x.id!==id); renderOrders();
-  await Promise.all([
-    persistWrite('deleteOrder', {id}),
-    persistWrite('addLog', activityLog[0])
-  ]);
+  await persistWrite('deleteOrder', {id}, activityLog[0]);
 }
 function showOrderDetail(id){
   const o = S.orders.find(x => x.id === id); if (!o) return;
@@ -1166,22 +1143,22 @@ function showOrderDetail(id){
   const profit = sell - cost;
   const margin = sell > 0 ? Math.round(profit / sell * 100) : 0;
   const lines = Array.isArray(o.ingredientSnapshot) ? o.ingredientSnapshot : [];
-  showModal(`<div class="modal-title">Order #${o.id} — ${o.customer}</div>
+  showModal(`<div class="modal-title">Order #${o.id} — ${esc(o.customer)}</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-      ${o.customerPhone ? `📞 ${o.customerPhone} &nbsp;·&nbsp; ` : ''}
-      ${o.customerEmail ? `✉️ ${o.customerEmail} &nbsp;·&nbsp; ` : ''}
-      ${o.customerAddress ? `📍 ${o.customerAddress}` : ''}
+      ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp;·&nbsp; ` : ''}
+      ${o.customerEmail ? `✉️ ${esc(o.customerEmail)} &nbsp;·&nbsp; ` : ''}
+      ${o.customerAddress ? `📍 ${esc(o.customerAddress)}` : ''}
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Recipe</span><span><strong>${r ? r.name : '?'}</strong> × ${o.qty}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Recipe</span><span><strong>${r ? esc(r.name) : '?'}</strong> × ${o.qty}</span></div>
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Due</span><span>${fmtDate(o.dueDate)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${o.status}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span></div>
     ${o.completedDate ? `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Completed</span><span>${fmtDate(o.completedDate)}</span></div>` : ''}
-    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:8px 0;padding:8px;background:var(--bg-soft,#FAF7F2);border-radius:6px">📝 ${o.note}</div>` : ''}
+    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:8px 0;padding:8px;background:var(--bg-soft,#FAF7F2);border-radius:6px">📝 ${esc(o.note)}</div>` : ''}
     <div class="divider"></div>
     <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Cost breakdown (snapshot at order time)</div>
     ${lines.length === 0
       ? `<div style="color:var(--text-muted);font-size:12px">No snapshot — this order was placed before cost-tracking was added. Showing live recipe cost: ${fmtMoney(r ? calcIngCost(r) * o.qty : 0)}</div>`
-      : lines.map(l => `<div class="history-row"><span>${l.name} — ${l.qtyEntered} ${l.unit}</span><span style="font-weight:500">${fmtMoney(l.lineCost)}</span></div>`).join('')}
+      : lines.map(l => `<div class="history-row"><span>${esc(l.name)} — ${l.qtyEntered} ${esc(l.unit)}</span><span style="font-weight:500">${fmtMoney(l.lineCost)}</span></div>`).join('')}
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Total ingredient cost</span><span style="font-weight:600">${fmtMoney(cost)}</span></div>
     <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--success)"><span>Total revenue</span><span style="font-weight:600">${fmtMoney(sell)}</span></div>
@@ -1195,8 +1172,8 @@ async function init() {
   showDbBanner();
   if (DB_ENABLED) {
     showLoading('Loading your data...');
-    // Ensure the sheet schema is up to date (idempotent — only adds missing columns)
-    await dbGet('init');
+    // load() in the backend self-migrates the schema before reading,
+    // so a single call gets us both up-to-date columns and the data.
     const result = await dbGet('load');
     if (result && result.ok) {
       S.ingredients = result.ingredients || [];

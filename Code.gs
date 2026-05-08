@@ -159,6 +159,8 @@ function resolveId(sheetName, providedId) {
 // ── LOAD ALL DATA ─────────────────────────────────────────────
 function loadAll() {
   try {
+    // Auto-migrate schema on every load — idempotent and fast.
+    initialiseSheets();
     const ingredients = sheetToObjects('Ingredients');
     const priceHistoryRows = sheetToObjects('PriceHistory');
     const recipes = sheetToObjects('Recipes');
@@ -477,6 +479,11 @@ function doPost(e) {
     else if (action === 'clearLog')          result = clearLog();
     else if (action === 'recoverAll')        result = recoverAll(body.data);
     else result = JSON.stringify({ ok: false, error: 'Unknown action: ' + action });
+    // Optional piggyback log entry — saves one round trip when frontend would
+    // have called addLog separately right after the main action.
+    if (body.log && action !== 'addLog' && action !== 'clearLog' && action !== 'recoverAll') {
+      try { addLog(body.log); } catch(_) {}
+    }
   } catch(err) {
     result = JSON.stringify({ ok: false, error: err.toString() });
   }
