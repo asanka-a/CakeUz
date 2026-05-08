@@ -19,16 +19,19 @@ const HEADERS = {
   Ingredients:       ['id','name','stock','unit','cost'],
   PriceHistory:      ['ingId','date','cost'],
   Recipes:           ['id','name','yield','sellPrice'],
-  RecipeIngredients: ['recipeId','ingId','qty'],
-  Orders:            ['id','customer','recipeId','qty','note','dueDate','status'],
+  RecipeIngredients: ['recipeId','ingId','qty','unit'],
+  Orders:            ['id','customer','customerPhone','customerEmail','customerAddress','recipeId','qty','note','dueDate','status','sellPriceSnapshot','ingredientCost','ingredientSnapshot','completedDate'],
   ShoppingTrips:     ['id','date','shop','total','receiptImg'],
   ShoppingItems:     ['tripId','ingId','qty','unitPrice'],
   ActivityLog:       ['type','action','detail','time']
 };
 
 // ── INITIALISE SHEETS ────────────────────────────────────────
+// Creates missing sheets and appends missing header columns to existing ones.
+// Safe to run multiple times — never destroys existing data.
 function initialiseSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const added = [];
   Object.entries(HEADERS).forEach(([name, cols]) => {
     let sheet = ss.getSheetByName(name);
     if (!sheet) {
@@ -36,9 +39,23 @@ function initialiseSheets() {
       sheet.getRange(1, 1, 1, cols.length).setValues([cols]);
       sheet.getRange(1, 1, 1, cols.length)
         .setBackground('#2D3E50').setFontColor('#FFFFFF').setFontWeight('bold');
+      added.push(name + ' (created)');
+    } else {
+      // Ensure all expected header columns exist; append any that are missing
+      const existingHeaders = sheet.getLastColumn() > 0
+        ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+        : [];
+      const missing = cols.filter(c => existingHeaders.indexOf(c) < 0);
+      if (missing.length) {
+        const startCol = existingHeaders.length + 1;
+        sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+        sheet.getRange(1, startCol, 1, missing.length)
+          .setBackground('#2D3E50').setFontColor('#FFFFFF').setFontWeight('bold');
+        added.push(name + ': +' + missing.join(','));
+      }
     }
   });
-  return JSON.stringify({ ok: true, message: 'Sheets initialised' });
+  return JSON.stringify({ ok: true, message: 'Sheets initialised', changes: added });
 }
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -163,7 +180,7 @@ function loadAll() {
       r.sellPrice = parseFloat(r.sellPrice);
       r.ingredients = recipeIngredients
         .filter(ri => String(ri.recipeId) === String(r.id))
-        .map(ri => ({ ingId: parseInt(ri.ingId), qty: parseFloat(ri.qty) }));
+        .map(ri => ({ ingId: parseInt(ri.ingId), qty: parseFloat(ri.qty), unit: ri.unit ? String(ri.unit) : '' }));
     });
 
     ingredients.forEach(i => {
@@ -176,6 +193,14 @@ function loadAll() {
       o.id = parseInt(o.id);
       o.recipeId = parseInt(o.recipeId);
       o.qty = parseInt(o.qty);
+      o.sellPriceSnapshot = parseFloat(o.sellPriceSnapshot) || 0;
+      o.ingredientCost = parseFloat(o.ingredientCost) || 0;
+      if (o.ingredientSnapshot && typeof o.ingredientSnapshot === 'string') {
+        try { o.ingredientSnapshot = JSON.parse(o.ingredientSnapshot); }
+        catch(e) { o.ingredientSnapshot = []; }
+      } else if (!o.ingredientSnapshot) {
+        o.ingredientSnapshot = [];
+      }
     });
 
     shoppingTrips.forEach(t => {
@@ -225,7 +250,7 @@ function addRecipe(data) {
   const id = resolveId('Recipes', data.id);
   appendRow('Recipes', { id, name: data.name, yield: data.yield, sellPrice: data.sellPrice });
   data.ingredients.forEach(ri => {
-    appendRow('RecipeIngredients', { recipeId: id, ingId: ri.ingId, qty: ri.qty });
+    appendRow('RecipeIngredients', { recipeId: id, ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' });
   });
   return JSON.stringify({ ok: true, id });
 }
@@ -237,7 +262,7 @@ function editRecipe(data) {
   if (!ok) return JSON.stringify({ ok: false, error: 'Recipe id ' + data.id + ' not found' });
   deleteRowsByField('RecipeIngredients', 'recipeId', data.id);
   data.ingredients.forEach(ri => {
-    appendRow('RecipeIngredients', { recipeId: data.id, ingId: ri.ingId, qty: ri.qty });
+    appendRow('RecipeIngredients', { recipeId: data.id, ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' });
   });
   return JSON.stringify({ ok: true });
 }
@@ -252,14 +277,46 @@ function deleteRecipe(data) {
 function addOrder(data) {
   const id = resolveId('Orders', data.id);
   appendRow('Orders', {
-    id, customer: data.customer, recipeId: data.recipeId, qty: data.qty,
-    note: data.note, dueDate: data.dueDate, status: data.status || 'pending'
+    id,
+    customer: data.customer,
+    customerPhone: data.customerPhone || '',
+    customerEmail: data.customerEmail || '',
+    customerAddress: data.customerAddress || '',
+    recipeId: data.recipeId,
+    qty: data.qty,
+    note: data.note || '',
+    dueDate: data.dueDate,
+    status: data.status || 'pending',
+    sellPriceSnapshot: data.sellPriceSnapshot || 0,
+    ingredientCost: data.ingredientCost || 0,
+    ingredientSnapshot: data.ingredientSnapshot ? JSON.stringify(data.ingredientSnapshot) : '',
+    completedDate: data.completedDate || ''
   });
   return JSON.stringify({ ok: true, id });
 }
 
 function updateOrderStatus(data) {
-  const ok = updateRowById('Orders', data.id, { status: data.status });
+  const updates = { status: data.status };
+  if (data.completedDate !== undefined) updates.completedDate = data.completedDate;
+  // Apply stock deltas if provided (used for done/undone transitions)
+  if (Array.isArray(data.stockDeltas)) {
+    const sheet = getSheet('Ingredients');
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const idCol = headers.indexOf('id');
+    const stockCol = headers.indexOf('stock');
+    data.stockDeltas.forEach(d => {
+      for (let i = 1; i < rows.length; i++) {
+        if (parseInt(rows[i][idCol]) === parseInt(d.ingId)) {
+          const cur = parseFloat(rows[i][stockCol]) || 0;
+          const next = Math.round((cur + d.delta) * 1000) / 1000;
+          sheet.getRange(i + 1, stockCol + 1).setValue(next);
+          break;
+        }
+      }
+    });
+  }
+  const ok = updateRowById('Orders', data.id, updates);
   if (!ok) return JSON.stringify({ ok: false, error: 'Order id ' + data.id + ' not found' });
   return JSON.stringify({ ok: true });
 }
