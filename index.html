@@ -171,6 +171,37 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 
+// Toast notifications (success/error)
+function showToast(msg, kind) {
+  const colors = kind === 'error'
+    ? { bg: '#FDECEA', border: '#E5887E', text: '#9C2A1F' }
+    : { bg: '#E8F5E9', border: '#7CB97F', text: '#1B5E20' };
+  let stack = document.getElementById('toast-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'toast-stack';
+    stack.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px;max-width:360px;';
+    document.body.appendChild(stack);
+  }
+  const el = document.createElement('div');
+  el.style.cssText = `background:${colors.bg};border:1px solid ${colors.border};color:${colors.text};padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.08);animation:fadein 0.2s`;
+  el.textContent = msg;
+  stack.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, kind === 'error' ? 6000 : 2500);
+}
+
+// Persist with error surfacing. Returns true on success, false on failure.
+async function persistWrite(action, data) {
+  if (!DB_ENABLED) return false;
+  const res = await dbPost(action, data);
+  if (!res || res.ok !== true) {
+    const err = (res && res.error) || 'connection error';
+    showToast('Save failed (' + action + '): ' + err, 'error');
+    return false;
+  }
+  return true;
+}
+
 
 // ─── CURRENCY ────────────────────────────────────────────────────────────────
 const CURRENCY = 'SGD';
@@ -187,47 +218,12 @@ function logAction(type, action, detail) {
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const S = {
-  ingredients:[
-    {id:1,name:"All-purpose flour",stock:5,unit:"kg",cost:1.20},
-    {id:2,name:"Butter",stock:2,unit:"kg",cost:9.50},
-    {id:3,name:"Sugar",stock:3,unit:"kg",cost:1.80},
-    {id:4,name:"Eggs",stock:24,unit:"pcs",cost:0.35},
-    {id:5,name:"Milk",stock:3,unit:"L",cost:2.20},
-    {id:6,name:"Cocoa powder",stock:0.5,unit:"kg",cost:12.00},
-    {id:7,name:"Vanilla extract",stock:100,unit:"ml",cost:0.08},
-    {id:8,name:"Baking powder",stock:200,unit:"g",cost:0.03},
-    {id:9,name:"Cream cheese",stock:1,unit:"kg",cost:11.50},
-    {id:10,name:"Icing sugar",stock:2,unit:"kg",cost:2.20}
-  ],
-  priceHistory:{
-    1:[{date:"2026-03-01",cost:1.10},{date:"2026-04-01",cost:1.15},{date:"2026-05-01",cost:1.20}],
-    2:[{date:"2026-03-01",cost:8.80},{date:"2026-04-01",cost:9.20},{date:"2026-05-01",cost:9.50}],
-    3:[{date:"2026-03-01",cost:1.65},{date:"2026-04-01",cost:1.75},{date:"2026-05-01",cost:1.80}],
-    4:[{date:"2026-03-01",cost:0.30},{date:"2026-04-01",cost:0.32},{date:"2026-05-01",cost:0.35}],
-    5:[{date:"2026-03-01",cost:2.00},{date:"2026-05-01",cost:2.20}],
-    6:[{date:"2026-03-01",cost:11.00},{date:"2026-05-01",cost:12.00}],
-    7:[{date:"2026-03-01",cost:0.08}],8:[{date:"2026-03-01",cost:0.03}],
-    9:[{date:"2026-03-01",cost:10.50},{date:"2026-05-01",cost:11.50}],
-    10:[{date:"2026-03-01",cost:2.00},{date:"2026-05-01",cost:2.20}]
-  },
-  shoppingTrips:[],
-  recipes:[
-    {id:1,name:"Chocolate Fudge Cake",yield:"1 whole cake (8 inch)",sellPrice:58.00,ingredients:[
-      {ingId:1,qty:0.3},{ingId:2,qty:0.25},{ingId:3,qty:0.3},{ingId:4,qty:3},{ingId:5,qty:0.15},{ingId:6,qty:0.08},{ingId:7,qty:10},{ingId:8,qty:5}]},
-    {id:2,name:"Vanilla Sponge Cake",yield:"1 whole cake (8 inch)",sellPrice:45.00,ingredients:[
-      {ingId:1,qty:0.25},{ingId:2,qty:0.2},{ingId:3,qty:0.25},{ingId:4,qty:4},{ingId:5,qty:0.1},{ingId:7,qty:15},{ingId:8,qty:5}]},
-    {id:3,name:"Cream Cheese Cupcakes",yield:"12 cupcakes",sellPrice:48.00,ingredients:[
-      {ingId:1,qty:0.15},{ingId:2,qty:0.1},{ingId:3,qty:0.15},{ingId:4,qty:2},{ingId:5,qty:0.05},{ingId:9,qty:0.25},{ingId:10,qty:0.1},{ingId:7,qty:5},{ingId:8,qty:3}]},
-    {id:4,name:"Red Velvet Cake",yield:"1 whole cake (8 inch)",sellPrice:72.00,ingredients:[
-      {ingId:1,qty:0.28},{ingId:2,qty:0.22},{ingId:3,qty:0.28},{ingId:4,qty:3},{ingId:5,qty:0.15},{ingId:6,qty:0.04},{ingId:9,qty:0.3},{ingId:10,qty:0.15},{ingId:7,qty:10},{ingId:8,qty:5}]}
-  ],
-  orders:[
-    {id:1,customer:"Mei Lin Tan",recipeId:1,qty:1,note:"No nuts",dueDate:"2026-05-08",status:"pending"},
-    {id:2,customer:"Priya Nair",recipeId:3,qty:2,note:"Birthday theme",dueDate:"2026-05-09",status:"pending"},
-    {id:3,customer:"Sarah Lim",recipeId:2,qty:1,note:"",dueDate:"2026-05-02",status:"done"},
-    {id:4,customer:"Hui Ting Wong",recipeId:4,qty:1,note:"Delivery needed",dueDate:"2026-05-12",status:"pending"}
-  ],
-  nextIngId:11,nextRecipeId:5,nextOrderId:5,nextTripId:1
+  ingredients: [],
+  priceHistory: {},
+  shoppingTrips: [],
+  recipes: [],
+  orders: [],
+  nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1
 };
 
 const fmtPct = n => Math.round(n)+"%";
@@ -469,7 +465,7 @@ function renderActivityLog(){
         <span class="card-title">Activity Log</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--text-muted)">${activityLog.length} entries</span>
-          ${activityLog.length>0?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Clear all log entries?')){activityLog.length=0;dbPost('clearLog',{});renderActivityLog()}">Clear log</button>`:''}
+          ${activityLog.length>0?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Clear all log entries?')){activityLog.length=0;persistWrite('clearLog',{});renderActivityLog()}">Clear log</button>`:''}
         </div>
       </div>
       ${activityLog.length===0
@@ -505,7 +501,7 @@ function showAddIngredient(){
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>`);
 }
-function saveIngredient(){
+async function saveIngredient(){
   const name=document.getElementById('m-name').value.trim(); if(!name) return alert('Please enter a name.');
   const id=S.nextIngId++;
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
@@ -514,9 +510,11 @@ function saveIngredient(){
   S.ingredients.push({id,name,stock,unit,cost});
   S.priceHistory[id]=[{date:today(),cost}];
   logAction('add','Ingredient added',`${name} — ${fmtMoney(cost)}/${unit}, stock: ${stock} ${unit}`);
-  dbPost('addIngredient', {id, name, stock, unit, cost, date:today()});
-  dbPost('addLog', activityLog[0]);
   closeModal(); renderInventory();
+  await Promise.all([
+    persistWrite('addIngredient', {id, name, stock, unit, cost, date:today()}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 
 function showEditIngredient(id){
@@ -533,7 +531,7 @@ function showEditIngredient(id){
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>`);
 }
-function saveEditIngredient(id){
+async function saveEditIngredient(id){
   const i=getIng(id);
   const nc=parseFloat(document.getElementById('m-cost').value)||0;
   const oldCost=i.cost, oldStock=i.stock;
@@ -544,16 +542,20 @@ function saveEditIngredient(id){
   if(nc!==oldCost){ i.cost=nc; if(!S.priceHistory[id])S.priceHistory[id]=[]; S.priceHistory[id].push({date:today(),cost:nc}); detail+=` — price: ${fmtMoney(oldCost)} → ${fmtMoney(nc)}`; }
   if(i.stock!==oldStock) detail+=` — stock: ${oldStock} → ${i.stock} ${i.unit}`;
   logAction('edit','Ingredient updated',detail);
-  dbPost('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged:nc!==oldCost, date:today()});
-  dbPost('addLog', activityLog[0]);
   closeModal(); renderInventory();
+  await Promise.all([
+    persistWrite('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged:nc!==oldCost, date:today()}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
-function deleteIng(id){
+async function deleteIng(id){
   const i=getIng(id);
   logAction('delete','Ingredient deleted',i?i.name:'unknown');
-  dbPost('deleteIngredient', {id});
-  dbPost('addLog', activityLog[0]);
   S.ingredients=S.ingredients.filter(x=>x.id!==id); renderInventory();
+  await Promise.all([
+    persistWrite('deleteIngredient', {id}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 
 function showPriceHistory(id){
@@ -646,7 +648,7 @@ async function scanWithAI(){
   }catch(err){status.innerHTML=`<span style="color:var(--danger)">Error: ${err.message}</span>`;}
   btn.disabled=false;
 }
-function saveTrip(){
+async function saveTrip(){
   const date=document.getElementById('m-tdate').value,shop=document.getElementById('m-tshop').value;
   const rows=document.querySelectorAll('#trip-rows .ing-row');
   const items=[];let total=0;
@@ -665,16 +667,20 @@ function saveTrip(){
   const receiptImg = receiptB64?`data:${receiptMime};base64,${receiptB64}`:null;
   S.shoppingTrips.push({id:tripId,date,shop,items,total,receiptImg});
   logAction('shop','Shopping trip saved',`${shop||'Unnamed shop'} — ${items.length} items, total ${fmtMoney(total)}`);
-  dbPost('addShoppingTrip', {date, shop, total, items, receiptImg: receiptImg||''});
-  dbPost('addLog', activityLog[0]);
   closeModal(); renderShopping();
+  await Promise.all([
+    persistWrite('addShoppingTrip', {id:tripId, date, shop, total, items, receiptImg: receiptImg||''}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
-function deleteTrip(id){
+async function deleteTrip(id){
   const t=S.shoppingTrips.find(x=>x.id===id);
   logAction('delete','Shopping trip deleted',t?`${fmtDate(t.date)} — ${t.shop}`:'');
-  dbPost('deleteShoppingTrip', {id});
-  dbPost('addLog', activityLog[0]);
   S.shoppingTrips=S.shoppingTrips.filter(x=>x.id!==id); renderShopping();
+  await Promise.all([
+    persistWrite('deleteShoppingTrip', {id}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 function viewReceiptFull(id){
   const t=S.shoppingTrips.find(x=>x.id===id); if(!t||!t.receiptImg) return;
@@ -700,17 +706,20 @@ function addRecipeIngRow(){
   div.innerHTML=`<select style="flex:2">${ingOpts()}</select><input type="number" placeholder="Qty" step="0.01" value="0.1" style="width:80px"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>`;
   document.getElementById('m-ings').appendChild(div);
 }
-function saveRecipe(){
+async function saveRecipe(){
   const name=document.getElementById('m-rname').value.trim(); if(!name) return;
   const ings=[];
   document.querySelectorAll('#m-ings .ing-row').forEach(row=>{const s=row.querySelector('select'),i=row.querySelector('input[type=number]');if(s&&i)ings.push({ingId:parseInt(s.value),qty:parseFloat(i.value)||0});});
   const sellPrice=parseFloat(document.getElementById('m-rprice').value)||0;
-  S.recipes.push({id:S.nextRecipeId++,name,yield:document.getElementById('m-ryield').value||'1 unit',sellPrice,ingredients:ings});
+  const id = S.nextRecipeId++;
+  S.recipes.push({id,name,yield:document.getElementById('m-ryield').value||'1 unit',sellPrice,ingredients:ings});
   logAction('add','Recipe added',`${name} — sell price ${fmtMoney(sellPrice)}, ${ings.length} ingredients`);
   const newRec = S.recipes[S.recipes.length-1];
-  dbPost('addRecipe', {name:newRec.name, yield:newRec.yield, sellPrice:newRec.sellPrice, ingredients:newRec.ingredients});
-  dbPost('addLog', activityLog[0]);
   closeModal(); renderRecipes();
+  await Promise.all([
+    persistWrite('addRecipe', {id, name:newRec.name, yield:newRec.yield, sellPrice:newRec.sellPrice, ingredients:newRec.ingredients}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 function showViewRecipe(id){
   const r=getRecipe(id); if(!r) return;
@@ -723,12 +732,14 @@ function showViewRecipe(id){
     <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0;color:var(--success)"><span>Sell price</span><span>${fmtMoney(r.sellPrice)}</span></div>
     <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
 }
-function deleteRecipe(id){
+async function deleteRecipe(id){
   const r=getRecipe(id);
   logAction('delete','Recipe deleted',r?r.name:'');
-  dbPost('deleteRecipe', {id});
-  dbPost('addLog', activityLog[0]);
   S.recipes=S.recipes.filter(x=>x.id!==id); renderRecipes();
+  await Promise.all([
+    persistWrite('deleteRecipe', {id}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 
 function showAddOrder(){
@@ -745,33 +756,40 @@ function showAddOrder(){
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>`);
 }
-function saveOrder(){
+async function saveOrder(){
   const customer=document.getElementById('m-ocust').value.trim(); if(!customer) return;
   const recipeId=parseInt(document.getElementById('m-orec').value);
   const qty=parseInt(document.getElementById('m-oqty').value)||1;
   const r=getRecipe(recipeId);
-  S.orders.push({id:S.nextOrderId++,customer,recipeId,qty,note:document.getElementById('m-onote').value,dueDate:document.getElementById('m-odate').value,status:'pending'});
+  const id = S.nextOrderId++;
+  S.orders.push({id,customer,recipeId,qty,note:document.getElementById('m-onote').value,dueDate:document.getElementById('m-odate').value,status:'pending'});
   logAction('order','Order placed',`${customer} — ${r?r.name:''} × ${qty}, total ${fmtMoney(r?r.sellPrice*qty:0)}`);
   const newOrd = S.orders[S.orders.length-1];
-  dbPost('addOrder', {customer:newOrd.customer, recipeId:newOrd.recipeId, qty:newOrd.qty, note:newOrd.note, dueDate:newOrd.dueDate});
-  dbPost('addLog', activityLog[0]);
   closeModal(); renderOrders();
+  await Promise.all([
+    persistWrite('addOrder', {id, customer:newOrd.customer, recipeId:newOrd.recipeId, qty:newOrd.qty, note:newOrd.note, dueDate:newOrd.dueDate, status:newOrd.status}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
-function cycleStatus(id){
+async function cycleStatus(id){
   const o=S.orders.find(x=>x.id===id); if(!o) return;
   const r=getRecipe(o.recipeId);
-  const prev=o.status; o.status=o.status==='pending'?'done':'pending';
+  o.status=o.status==='pending'?'done':'pending';
   logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`);
-  dbPost('updateOrderStatus', {id:o.id, status:o.status});
-  dbPost('addLog', activityLog[0]);
   renderOrders();
+  await Promise.all([
+    persistWrite('updateOrderStatus', {id:o.id, status:o.status}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
-function deleteOrder(id){
+async function deleteOrder(id){
   const o=S.orders.find(x=>x.id===id);
   logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'');
-  dbPost('deleteOrder', {id});
-  dbPost('addLog', activityLog[0]);
   S.orders=S.orders.filter(x=>x.id!==id); renderOrders();
+  await Promise.all([
+    persistWrite('deleteOrder', {id}),
+    persistWrite('addLog', activityLog[0])
+  ]);
 }
 
 
@@ -782,23 +800,20 @@ async function init() {
     showLoading('Loading your data...');
     const result = await dbGet('load');
     if (result && result.ok) {
-      // Restore state from Google Sheets
-      if (result.ingredients.length) S.ingredients = result.ingredients;
-      if (result.recipes.length) S.recipes = result.recipes;
-      if (result.orders.length) S.orders = result.orders;
-      if (result.shoppingTrips.length) S.shoppingTrips = result.shoppingTrips;
-      if (Object.keys(result.priceHistory).length) S.priceHistory = result.priceHistory;
-      if (result.activityLog.length) {
-        activityLog.length = 0;
-        result.activityLog.forEach(l => activityLog.push(l));
-      }
-      // Update next IDs
-      if (S.ingredients.length) S.nextIngId = Math.max(...S.ingredients.map(i=>i.id)) + 1;
-      if (S.recipes.length) S.nextRecipeId = Math.max(...S.recipes.map(r=>r.id)) + 1;
-      if (S.orders.length) S.nextOrderId = Math.max(...S.orders.map(o=>o.id)) + 1;
-      if (S.shoppingTrips.length) S.nextTripId = Math.max(...S.shoppingTrips.map(t=>t.id)) + 1;
+      S.ingredients = result.ingredients || [];
+      S.recipes = result.recipes || [];
+      S.orders = result.orders || [];
+      S.shoppingTrips = result.shoppingTrips || [];
+      S.priceHistory = result.priceHistory || {};
+      activityLog.length = 0;
+      (result.activityLog || []).forEach(l => activityLog.push(l));
+      // Next IDs walk past any existing rows
+      S.nextIngId    = S.ingredients.length    ? Math.max(...S.ingredients.map(i=>i.id))    + 1 : 1;
+      S.nextRecipeId = S.recipes.length        ? Math.max(...S.recipes.map(r=>r.id))        + 1 : 1;
+      S.nextOrderId  = S.orders.length         ? Math.max(...S.orders.map(o=>o.id))         + 1 : 1;
+      S.nextTripId   = S.shoppingTrips.length  ? Math.max(...S.shoppingTrips.map(t=>t.id))  + 1 : 1;
     } else {
-      console.warn('Could not load from Sheets — using demo data');
+      showToast('Could not load data from Google Sheets — check your connection', 'error');
     }
     hideLoading();
   }

@@ -1,0 +1,9 @@
+# Local helper files - contain sensitive Apps Script URLs
+_db_snapshot.json
+_recovery_payload.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
