@@ -25,11 +25,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-p
 .brand-name{font-family:'Playfair Display',serif;font-size:22px;color:#FDF8F2;font-weight:600}
 .brand-sub{font-size:11px;color:var(--mocha);letter-spacing:0.08em;text-transform:uppercase;font-weight:500}
 .topbar-date{font-size:12px;color:var(--text-secondary)}
-.nav-wrap{background:var(--warm-white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;gap:0;overflow-x:auto}
-.nav-btn{padding:14px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s}
-.nav-btn:hover{color:var(--chocolate)}
-.nav-btn.active{color:var(--caramel-dark);border-bottom-color:var(--caramel);font-weight:600}
-.main{padding:2rem;max-width:1200px;margin:0 auto}
+.app-body{display:flex;align-items:stretch;min-height:calc(100vh - 64px)}
+.sidebar{width:200px;flex-shrink:0;background:var(--warm-white);border-right:1px solid var(--border);padding:14px 0;display:flex;flex-direction:column;gap:2px;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto}
+.nav-btn{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 1.25rem;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-left:3px solid transparent;white-space:nowrap;transition:all 0.15s;width:100%}
+.nav-btn:hover{color:var(--chocolate);background:var(--cream)}
+.nav-btn.active{color:var(--caramel-dark);border-left-color:var(--caramel);background:#FEF8EE;font-weight:600}
+.nav-btn .nav-icon{font-size:15px;width:18px;text-align:center}
+.main{flex:1;min-width:0;padding:2rem;max-width:1200px}
+@media (max-width: 720px) {
+  .app-body{flex-direction:column}
+  .sidebar{width:100%;height:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:0;position:sticky;top:64px;border-right:none;border-bottom:1px solid var(--border)}
+  .nav-btn{padding:12px 14px;border-left:none;border-bottom:3px solid transparent;width:auto;flex-shrink:0}
+  .nav-btn.active{border-left:none;border-bottom-color:var(--caramel);background:none}
+  .nav-btn .nav-icon{display:none}
+  .main{padding:1rem}
+}
 .card{background:var(--warm-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow-sm)}
 .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
 .card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--chocolate)}
@@ -101,23 +111,25 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
     <div class="topbar-date" id="topbar-date"></div>
   </div>
 </div>
-<div class="nav-wrap">
-  <button class="nav-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
-  <button class="nav-btn" onclick="switchTab('inventory',this)">Inventory</button>
-  <button class="nav-btn" onclick="switchTab('shopping',this)">Shopping</button>
-  <button class="nav-btn" onclick="switchTab('recipes',this)">Recipes</button>
-  <button class="nav-btn" onclick="switchTab('orders',this)">Orders</button>
-  <button class="nav-btn" onclick="switchTab('pricing',this)">Pricing</button>
-  <button class="nav-btn" onclick="switchTab('activitylog',this)">Activity Log</button>
-</div>
-<div class="main">
-  <div id="tab-dashboard" class="section active"></div>
-  <div id="tab-inventory" class="section"></div>
-  <div id="tab-shopping" class="section"></div>
-  <div id="tab-recipes" class="section"></div>
-  <div id="tab-orders" class="section"></div>
-  <div id="tab-pricing" class="section"></div>
-  <div id="tab-activitylog" class="section"></div>
+<div class="app-body">
+  <nav class="sidebar" aria-label="Main navigation">
+    <button class="nav-btn active" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span> Dashboard</button>
+    <button class="nav-btn" onclick="switchTab('inventory',this)"><span class="nav-icon">📦</span> Inventory</button>
+    <button class="nav-btn" onclick="switchTab('shopping',this)"><span class="nav-icon">🛒</span> Shopping</button>
+    <button class="nav-btn" onclick="switchTab('recipes',this)"><span class="nav-icon">🍰</span> Recipes</button>
+    <button class="nav-btn" onclick="switchTab('orders',this)"><span class="nav-icon">📝</span> Orders</button>
+    <button class="nav-btn" onclick="switchTab('pricing',this)"><span class="nav-icon">💰</span> Pricing</button>
+    <button class="nav-btn" onclick="switchTab('activitylog',this)"><span class="nav-icon">📜</span> Activity Log</button>
+  </nav>
+  <main class="main">
+    <div id="tab-dashboard" class="section active"></div>
+    <div id="tab-inventory" class="section"></div>
+    <div id="tab-shopping" class="section"></div>
+    <div id="tab-recipes" class="section"></div>
+    <div id="tab-orders" class="section"></div>
+    <div id="tab-pricing" class="section"></div>
+    <div id="tab-activitylog" class="section"></div>
+  </main>
 </div>
 <div id="modal-root"></div>
 
@@ -450,7 +462,7 @@ function showDbBanner() {
   banner.id = 'db-banner';
   banner.innerHTML = `<span>⚠️ Running in demo mode — data will reset on refresh. <a href="https://github.com/yourusername/cakeuz#setup" target="_blank" style="color:var(--caramel);font-weight:600">Connect Google Sheets →</a></span>`;
   banner.style.cssText = 'background:#FEF3D8;border-bottom:1px solid var(--caramel-light);padding:8px 2rem;font-size:12px;color:var(--text-secondary);text-align:center;';
-  document.querySelector('.nav-wrap').after(banner);
+  document.querySelector('.topbar').after(banner);
 }
 
 // Loading overlay
