@@ -69,12 +69,25 @@ label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:
 input,select,textarea{font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--warm-white);color:var(--text-primary);transition:border-color 0.15s}
 input:focus,select:focus{outline:none;border-color:var(--caramel)}
 .modal-overlay{position:fixed;inset:0;background:rgba(42,21,6,0.5);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;backdrop-filter:blur(2px)}
-.modal{background:var(--warm-white);border-radius:var(--radius-lg);padding:2rem;width:100%;max-width:520px;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease}
+.modal{background:var(--warm-white);border-radius:var(--radius-lg);padding:2rem;width:100%;max-width:580px;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease}
+.modal.wide{max-width:760px}
+.modal-section-title{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px;padding-top:4px;border-top:1px solid var(--border-light)}
+.modal-section-title:first-child{margin-top:0;padding-top:0;border-top:none}
+.kv-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border-light)}
+.kv-row:nth-of-type(even){background:#FBF8F3;margin:0 -8px;padding:6px 8px}
+.kv-row .kv-label{color:var(--text-secondary)}
+.kv-row .kv-value{font-weight:500;color:var(--text-primary)}
+.totals-block{margin-top:10px;padding:12px;background:#FAF6EF;border-radius:8px;border:1px solid var(--border-light)}
+.totals-block .kv-row{border-bottom:none;background:none;padding:4px 0;margin:0}
 @keyframes modalIn{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--chocolate);margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border-light)}
 .section{display:none}.section.active{display:block}
-.ing-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.ing-row select{flex:2}.ing-row input{flex:1}
+.ing-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.ing-row .ri-ing, .ing-row .trip-ing{flex:1 1 180px;min-width:140px}
+.ing-row .ri-qty, .ing-row .trip-qty{flex:0 0 80px;width:80px}
+.ing-row .ri-unit, .ing-row .trip-unit{flex:0 0 80px;width:80px}
+.ing-row .trip-price{flex:0 0 110px;width:110px}
+.ing-row > button{flex:0 0 auto}
 .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:1.5rem;text-align:center;cursor:pointer;background:var(--cream);transition:all 0.2s}
 .upload-zone:hover{border-color:var(--caramel-light);background:var(--blush)}
 .receipt-thumb{width:56px;height:56px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer}
@@ -974,10 +987,11 @@ function showEntityHistory(entityType, entityId, label) {
 // ─── MODALS ───────────────────────────────────────────────────────────────────
 // Modal with dirty-guard: clicking outside or Esc only closes if no input was typed.
 let _modalDirty = false;
-function showModal(html){
+function showModal(html, opts){
   _modalDirty = false;
+  const cls = 'modal' + (opts && opts.wide ? ' wide' : '');
   document.getElementById('modal-root').innerHTML =
-    `<div class="modal-overlay" onclick="if(event.target===this)tryCloseModal()"><div class="modal" oninput="_modalDirty=true" onchange="_modalDirty=true">${html}</div></div>`;
+    `<div class="modal-overlay" onclick="if(event.target===this)tryCloseModal()"><div class="${cls}" oninput="_modalDirty=true" onchange="_modalDirty=true">${html}</div></div>`;
 }
 function closeModal(){
   _modalDirty = false;
@@ -1037,21 +1051,20 @@ async function saveIngredient(){
 function showEditIngredient(id){
   const i=getIng(id);
   showModal(`<div class="modal-title">Edit ${esc(i.name)}</div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Current values</div>
+    <div class="modal-section-title">Current values</div>
     <div class="form-row"><div class="form-group"><label>Name</label><input id="m-name" value="${esc(i.name)}"></div></div>
     <div class="form-row">
       <div class="form-group"><label>Storage unit</label><select id="m-unit">${unitOptionsHtml(i.unit)}</select></div>
       <div class="form-group"><label>Stock qty</label><input id="m-stock" type="number" value="${i.stock}" step="0.001"></div>
-      <div class="form-group"><label>Cost per unit (${CURRENCY})</label><input id="m-cost" type="number" value="${i.cost}" step="0.0001"></div>
+      <div class="form-group"><label>Cost / unit (${CURRENCY})</label><input id="m-cost" type="number" value="${i.cost}" step="0.0001"></div>
     </div>
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Or log a new purchase</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Adds the bought qty to stock and updates the per-unit cost from the total price you paid.</div>
+    <div class="modal-section-title">Or log a new purchase</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:-4px 0 8px">Adds the bought qty to stock and overwrites the cost using your total price.</div>
     <div class="form-row">
-      <div class="form-group"><label>Bought qty (in storage unit)</label><input id="m-buyqty" type="number" value="0" step="0.001" oninput="updateEditIngHelper()"></div>
+      <div class="form-group"><label>Bought qty (storage unit)</label><input id="m-buyqty" type="number" value="0" step="0.001" oninput="updateEditIngHelper()"></div>
       <div class="form-group"><label>Total price (${CURRENCY})</label><input id="m-buyprice" type="number" value="0" step="0.01" oninput="updateEditIngHelper()"></div>
     </div>
-    <div id="m-helper" style="font-size:12px;color:var(--text-muted);margin:-4px 0 8px"></div>
+    <div id="m-helper" style="font-size:12px;color:var(--text-muted);min-height:18px"></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="saveEditIngredient(${id})">Save changes</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
@@ -1317,22 +1330,23 @@ function showRecipeForm(r, mode){
   showModal(`<div class="modal-title">${mode} Recipe</div>
     ${startFromPicker}
     <div class="form-row"><div class="form-group"><label>Recipe name</label><input id="m-rname" value="${esc(r.name||'')}"></div></div>
-    <div class="form-row"><div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${esc(r.yield||'')}"></div></div>
-    <div class="form-row"><div class="form-group"><label>Suggested sell price per unit (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Batch costs (defaults for new orders)</div>
+    <div class="form-row">
+      <div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${esc(r.yield||'')}"></div>
+      <div class="form-group"><label>Suggested sell price / unit (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div>
+    </div>
+    <div class="modal-section-title">Batch costs <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— defaults for new orders, editable per order</span></div>
     <div class="form-row">
       <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-rlabour" type="number" value="${r.defaultLabour ?? 20}" step="0.01"></div>
       <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-relec" type="number" value="${r.defaultElectricity ?? 5}" step="0.01"></div>
       <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-rpack" type="number" value="${r.defaultPackingPerUnit ?? 2}" step="0.01"></div>
     </div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Ingredients</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Pick any compatible unit per ingredient — the system converts at costing time.</div>
+    <div class="modal-section-title">Ingredients <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pick any compatible unit; system converts at costing time</span></div>
     <div id="m-ings"></div>
     <button class="btn btn-sm" onclick="addRecipeIngRow()" style="margin-bottom:12px">+ Add ingredient</button>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="${isEdit?`saveEditRecipe(${r.id})`:'saveRecipe()'}">${isEdit?'Save changes':'Save recipe'}</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
-    </div>`);
+    </div>`, { wide: true });
   if (r.ingredients && r.ingredients.length) {
     r.ingredients.forEach(ri => addRecipeIngRow(ri));
   } else {
@@ -1450,24 +1464,31 @@ function showViewRecipe(id){
   const cost=calcIngCost(r);
   const rows = (r.ingredients||[]).map(ri => {
     const i = getIng(ri.ingId);
-    if (!i) return `<div class="history-row"><span style="color:var(--danger)">⚠ Missing ingredient (id ${ri.ingId})</span><span>—</span></div>`;
+    if (!i) return `<div class="kv-row"><span class="kv-label" style="color:var(--danger)">⚠ Missing ingredient (id ${ri.ingId})</span><span>—</span></div>`;
     const unit = ri.unit || i.unit;
     const lineCost = calcRecipeLineCost(ri);
-    return `<div class="history-row"><span>${esc(i.name)} — ${ri.qty} ${esc(unit)}</span><span style="font-weight:500">${fmtMoney(lineCost)}</span></div>`;
+    return `<div class="kv-row"><span class="kv-label">${esc(i.name)} <span style="color:var(--text-muted)">— ${ri.qty} ${esc(unit)}</span></span><span class="kv-value">${fmtMoney(lineCost)}</span></div>`;
   }).join('');
   const margin = r.sellPrice > 0 ? Math.round((r.sellPrice - cost) / r.sellPrice * 100) : 0;
+  const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
   showModal(`<div class="modal-title">${esc(r.name)}</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Yield: ${esc(r.yield)}</div>
+    <div class="modal-section-title">Ingredients</div>
     ${rows}
-    <div class="divider"></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0"><span>Ingredient cost</span><span>${fmtMoney(cost)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0;color:var(--success)"><span>Sell price</span><span>${fmtMoney(r.sellPrice)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding:4px 0"><span>Margin</span><span style="color:${margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)'}">${margin}%</span></div>
-    <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap">
+    <div class="modal-section-title">Batch costs <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— default per order</span></div>
+    <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(r.defaultLabour ?? 20)}</span></div>
+    <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(r.defaultElectricity ?? 5)}</span></div>
+    <div class="kv-row"><span class="kv-label">Packing per unit</span><span class="kv-value">${fmtMoney(r.defaultPackingPerUnit ?? 2)}</span></div>
+    <div class="totals-block">
+      <div class="kv-row"><span class="kv-label">Ingredient cost</span><span class="kv-value">${fmtMoney(cost)}</span></div>
+      <div class="kv-row" style="color:var(--success);font-weight:600"><span>Suggested sell price</span><span>${fmtMoney(r.sellPrice)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Margin (ingredients only)</span><span style="color:${marginColor}">${margin}%</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="closeModal();showEditRecipe(${id})">Edit</button>
       <button class="btn" onclick="closeModal();showEntityHistory('recipe', ${id}, ${JSON.stringify(r.name)})">View change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
-    </div>`);
+    </div>`, { wide: true });
 }
 async function deleteRecipe(id){
   const r=getRecipe(id);
@@ -1483,39 +1504,38 @@ function showAddOrder(){
   }
   const firstRecipe = S.recipes[0];
   showModal(`<div class="modal-title">New Order</div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Customer</div>
+    <div class="modal-section-title">Customer</div>
     <div class="form-row">
       <div class="form-group"><label>Name</label><input id="m-ocust" placeholder="Customer name"></div>
       <div class="form-group"><label>Phone</label><input id="m-ophone" placeholder="+65 ..."></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email"></div>
+      <div class="form-group"><label>Address (optional)</label><input id="m-oaddr" placeholder="For delivery"></div>
     </div>
-    <div class="form-row"><div class="form-group"><label>Address (optional)</label><input id="m-oaddr" placeholder="For delivery"></div></div>
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Order</div>
+    <div class="modal-section-title">Order</div>
     <div class="form-row">
       <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="onOrderRecipeChanged()">${recipeOpts()}</select></div>
       <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="1" min="1" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${today()}"></div>
     </div>
-    <div class="form-row"><div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${today()}"></div></div>
     <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" placeholder="Special requests..."></div></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Pricing &amp; cost (pre-filled from recipe, editable per order)</div>
+    <div class="modal-section-title">Pricing &amp; cost <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pre-filled from recipe, editable per order</span></div>
     <div class="form-row">
-      <div class="form-group"><label>Sell price / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${firstRecipe.sellPrice || 0}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Sell / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${firstRecipe.sellPrice || 0}" oninput="updateOrderHelper()"></div>
       <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-olabour" type="number" step="0.01" value="${firstRecipe.defaultLabour ?? 20}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${firstRecipe.defaultElectricity ?? 5}" oninput="updateOrderHelper()"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${firstRecipe.defaultElectricity ?? 5}" oninput="updateOrderHelper()"></div>
       <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-opack" type="number" step="0.01" value="${firstRecipe.defaultPackingPerUnit ?? 2}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="0" oninput="updateOrderHelper()"></div>
     </div>
-    <div class="form-row"><div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="0" oninput="updateOrderHelper()"></div></div>
-    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 6px">Transport is invoiced to the customer separately — not part of cake cost or margin.</div>
-    <div id="order-helper" style="background:#FAF7F2;border-radius:8px;padding:10px 12px;font-size:12px;margin:8px 0"></div>
+    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px">Transport is invoiced to the customer separately — not part of cake cost or margin.</div>
+    <div id="order-helper" class="totals-block"></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="saveOrder()">Place order</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
-    </div>`);
+    </div>`, { wide: true });
   updateOrderHelper();
 }
 // Recipe change handler — refills the cost fields from the new recipe's defaults.
@@ -1546,16 +1566,16 @@ function updateOrderHelper(){
   const invoiceTotal = revenue + transport;
   const marginColor = margin >= 40 ? 'var(--success)' : margin >= 20 ? 'var(--warning)' : 'var(--danger)';
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between"><span>Ingredients (${qty}×)</span><span>${fmtMoney(ingredientCost)}</span></div>
-    <div style="display:flex;justify-content:space-between"><span>Labour</span><span>${fmtMoney(labour)}</span></div>
-    <div style="display:flex;justify-content:space-between"><span>Electricity</span><span>${fmtMoney(elec)}</span></div>
-    <div style="display:flex;justify-content:space-between"><span>Packing (${qty}× ${fmtMoney(packPerU)})</span><span>${fmtMoney(packPerU * qty)}</span></div>
-    <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border-light);padding-top:4px;margin-top:4px;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
-    <div style="display:flex;justify-content:space-between"><span>Sell total (${qty} × ${fmtMoney(sellPerU)})</span><span>${fmtMoney(revenue)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-weight:600;color:${marginColor}"><span>Cake profit</span><span>${fmtMoney(profit)} (${margin}%)</span></div>
-    <div style="border-top:1px dashed var(--border-light);margin:6px 0 4px"></div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>`;
+    <div class="kv-row"><span class="kv-label">Ingredients (${qty}×)</span><span class="kv-value">${fmtMoney(ingredientCost)}</span></div>
+    <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(labour)}</span></div>
+    <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(elec)}</span></div>
+    <div class="kv-row"><span class="kv-label">Packing (${qty}× ${fmtMoney(packPerU)})</span><span class="kv-value">${fmtMoney(packPerU * qty)}</span></div>
+    <div class="kv-row" style="border-top:1px solid var(--border);margin-top:4px;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
+    <div class="kv-row"><span class="kv-label">Sell (${qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value">${fmtMoney(revenue)}</span></div>
+    <div class="kv-row" style="font-weight:600;color:${marginColor}"><span>Cake profit</span><span>${fmtMoney(profit)} (${margin}%)</span></div>
+    <div style="border-top:1px dashed var(--border-light);margin:8px 0 0"></div>
+    <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
+    <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>`;
 }
 // Build a snapshot of recipe ingredients scaled by orderQty, in storage units.
 function buildOrderSnapshot(recipe, orderQty){
@@ -1682,36 +1702,39 @@ function showOrderDetail(id){
   const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
   const isLegacy = labour == null && elec == null && packPerU == null;
   showModal(`<div class="modal-title">Order #${o.id} — ${esc(o.customer)}</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-      ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp;·&nbsp; ` : ''}
-      ${o.customerEmail ? `✉️ ${esc(o.customerEmail)} &nbsp;·&nbsp; ` : ''}
-      ${o.customerAddress ? `📍 ${esc(o.customerAddress)}` : ''}
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
+      ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp; ` : ''}
+      ${o.customerEmail ? `✉️ ${esc(o.customerEmail)} &nbsp; ` : ''}
+      ${o.customerAddress ? `<br>📍 ${esc(o.customerAddress)}` : ''}
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Recipe</span><span><strong>${r ? esc(r.name) : '?'}</strong> × ${o.qty}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Due</span><span>${fmtDate(o.dueDate)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span></div>
-    ${o.completedDate ? `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Completed</span><span>${fmtDate(o.completedDate)}</span></div>` : ''}
-    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:8px 0;padding:8px;background:#FAF7F2;border-radius:6px">📝 ${esc(o.note)}</div>` : ''}
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Ingredients (snapshot at order time)</div>
+    <div class="modal-section-title">Order details</div>
+    <div class="kv-row"><span class="kv-label">Recipe</span><span class="kv-value"><strong>${r ? esc(r.name) : '?'}</strong> × ${o.qty}</span></div>
+    <div class="kv-row"><span class="kv-label">Due</span><span class="kv-value">${fmtDate(o.dueDate)}</span></div>
+    <div class="kv-row"><span class="kv-label">Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span></div>
+    ${o.completedDate ? `<div class="kv-row"><span class="kv-label">Completed</span><span class="kv-value">${fmtDate(o.completedDate)}</span></div>` : ''}
+    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:10px 0;padding:10px 12px;background:#FAF7F2;border-radius:6px;border-left:3px solid var(--caramel)">📝 ${esc(o.note)}</div>` : ''}
+    <div class="modal-section-title">Ingredients <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— snapshot at order time</span></div>
     ${lines.length === 0
-      ? `<div style="color:var(--text-muted);font-size:12px">No ingredient snapshot — live recipe cost: ${fmtMoney(r ? calcIngCost(r) * o.qty : 0)}</div>`
-      : lines.map(l => `<div class="history-row"><span>${esc(l.name)} — ${l.qtyEntered} ${esc(l.unit)}</span><span style="font-weight:500">${fmtMoney(l.lineCost)}</span></div>`).join('')}
+      ? `<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No ingredient snapshot — live recipe cost: ${fmtMoney(r ? calcIngCost(r) * o.qty : 0)}</div>`
+      : lines.map(l => `<div class="kv-row"><span class="kv-label">${esc(l.name)} <span style="color:var(--text-muted)">— ${l.qtyEntered} ${esc(l.unit)}</span></span><span class="kv-value">${fmtMoney(l.lineCost)}</span></div>`).join('')}
     ${isLegacy ? '' : `
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Batch costs</div>
-    <div class="history-row"><span>Labour</span><span style="font-weight:500">${fmtMoney(labour)}</span></div>
-    <div class="history-row"><span>Electricity</span><span style="font-weight:500">${fmtMoney(elec)}</span></div>
-    <div class="history-row"><span>Packing (${o.qty} × ${fmtMoney(packPerU)})</span><span style="font-weight:500">${fmtMoney((packPerU||0) * o.qty)}</span></div>
+    <div class="modal-section-title">Batch costs</div>
+    <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(labour)}</span></div>
+    <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(elec)}</span></div>
+    <div class="kv-row"><span class="kv-label">Packing (${o.qty} × ${fmtMoney(packPerU)})</span><span class="kv-value">${fmtMoney((packPerU||0) * o.qty)}</span></div>
     `}
-    <div class="divider"></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--success)"><span>Sell (${o.qty} × ${fmtMoney(sellPerU)})</span><span style="font-weight:600">${fmtMoney(sell)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;font-weight:600"><span>Cake profit</span><span style="color:${marginColor}">${fmtMoney(profit)} (${margin}%)</span></div>
-    <div style="border-top:1px dashed var(--border-light);margin:8px 0 4px"></div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
-    <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
+    <div class="totals-block">
+      <div class="kv-row" style="font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
+      <div class="kv-row" style="color:var(--success)"><span class="kv-label">Sell (${o.qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value" style="font-weight:600">${fmtMoney(sell)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Cake profit</span><span style="color:${marginColor}">${fmtMoney(profit)} (${margin}%)</span></div>
+      <div style="border-top:1px dashed var(--border-light);margin:6px 0 2px"></div>
+      <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">View change log</button>
+      <button class="btn btn-primary" onclick="closeModal()">Close</button>
+    </div>`, { wide: true });
 }
 
 
