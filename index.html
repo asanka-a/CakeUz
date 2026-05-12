@@ -6,6 +6,7 @@
 <title>CakeUz — by Asanka</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --cream:#F9F9FB;--warm-white:#FFFFFF;--caramel:#F5A623;--caramel-light:#F7BC55;
@@ -120,30 +121,323 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 <script>
 
 // ═══════════════════════════════════════════════════════
-// GOOGLE SHEETS API — paste your deployed Web App URL below
+// SUPABASE BACKEND
+// Anon key is meant to be public; row-level security gates writes
+// in a multi-user scenario. This app is single-user so RLS is off.
 // ═══════════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbxgy3VLd-c4ycF5DZ7XxJJoaOmE1ygMYxec84G0JNpXj1jNAwZ2Ss4VOTMGfswWJnmC/exec';
-const DB_ENABLED = API_URL !== 'YOUR_APPS_SCRIPT_URL_HERE';
+const SUPABASE_URL = 'https://puwdbrsvqbxeanoewycy.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d2RicnN2cWJ4ZWFub2V3eWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDY2ODIsImV4cCI6MjA5NDEyMjY4Mn0.Hqub2GM1iZuey5qzd2hOlP1G4QV98sigfgshd7p8g1k';
+const DB_ENABLED = !!SUPABASE_URL && SUPABASE_URL.startsWith('http');
+const sb = DB_ENABLED ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
+// dbGet/dbPost preserve their old interface; only the implementation swapped.
 async function dbGet(action) {
   if (!DB_ENABLED) return null;
-  try {
-    const res = await fetch(`${API_URL}?action=${action}`);
-    return await res.json();
-  } catch(e) { console.error('DB GET error:', e); return null; }
+  if (action === 'load') return loadAllFromSupabase();
+  if (action === 'init') return { ok: true };  // schema is fixed; nothing to migrate at runtime
+  return { ok: false, error: 'Unknown GET action: ' + action };
 }
 
 async function dbPost(action, data, log) {
   if (!DB_ENABLED) return null;
   try {
-    const payload = { action, data };
-    if (log) payload.log = log;
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload)
+    const result = await dispatchWrite(action, data);
+    // Fire-and-forget log piggyback. Failure here doesn't fail the main op.
+    if (log && result && result.ok) {
+      sbAddLog(log).catch(e => console.warn('addLog failed:', e));
+    }
+    return result;
+  } catch (e) {
+    console.error('Supabase write error:', e);
+    return { ok: false, error: e.message || String(e) };
+  }
+}
+
+// ── LOAD ──────────────────────────────────────────────────────
+async function loadAllFromSupabase() {
+  try {
+    const [ing, ph, rec, ri, ord, trip, si, log] = await Promise.all([
+      sb.from('ingredients').select('*').order('id'),
+      sb.from('price_history').select('*'),
+      sb.from('recipes').select('*').order('id'),
+      sb.from('recipe_ingredients').select('*'),
+      sb.from('orders').select('*').order('id'),
+      sb.from('shopping_trips').select('*').order('id'),
+      sb.from('shopping_items').select('*'),
+      sb.from('activity_log').select('*').order('time', { ascending: false }).limit(1000)
+    ]);
+    for (const r of [ing, ph, rec, ri, ord, trip, si, log]) {
+      if (r.error) throw r.error;
+    }
+
+    const ingredients = ing.data.map(r => ({
+      id: r.id, name: r.name, stock: Number(r.stock), unit: r.unit, cost: Number(r.cost)
+    }));
+
+    const priceHistory = {};
+    for (const p of ph.data) {
+      const key = String(p.ing_id);
+      if (!priceHistory[key]) priceHistory[key] = [];
+      priceHistory[key].push({ date: p.date, cost: Number(p.cost) });
+    }
+
+    const recipes = rec.data.map(r => {
+      const ringredients = ri.data
+        .filter(x => x.recipe_id === r.id)
+        .map(x => ({ ingId: x.ing_id, qty: Number(x.qty), unit: x.unit || '' }));
+      return {
+        id: r.id,
+        name: r.name,
+        yield: r.yield || '',
+        sellPrice: Number(r.suggested_sell_price || 0),  // alias kept for backward-compat with existing UI
+        suggestedSellPrice: Number(r.suggested_sell_price || 0),
+        defaultLabour: Number(r.default_labour ?? 20),
+        defaultElectricity: Number(r.default_electricity ?? 5),
+        defaultPackingPerUnit: Number(r.default_packing_per_unit ?? 2),
+        ingredients: ringredients
+      };
     });
-    return await res.json();
-  } catch(e) { console.error('DB POST error:', e); return null; }
+
+    const orders = ord.data.map(o => ({
+      id: o.id,
+      customer: o.customer,
+      customerPhone: o.customer_phone || '',
+      customerEmail: o.customer_email || '',
+      customerAddress: o.customer_address || '',
+      recipeId: o.recipe_id,
+      qty: o.qty,
+      note: o.note || '',
+      dueDate: o.due_date,
+      status: o.status,
+      sellPriceSnapshot: Number(o.sell_price_per_unit || 0),  // alias for the old field name
+      sellPricePerUnit: Number(o.sell_price_per_unit || 0),
+      labour: o.labour !== null ? Number(o.labour) : null,
+      electricity: o.electricity !== null ? Number(o.electricity) : null,
+      packingPerUnit: o.packing_per_unit !== null ? Number(o.packing_per_unit) : null,
+      transportCost: Number(o.transport_cost || 0),
+      ingredientCost: Number(o.ingredient_cost || 0),
+      cakeCost: Number(o.cake_cost || 0),
+      ingredientSnapshot: Array.isArray(o.ingredient_snapshot) ? o.ingredient_snapshot : [],
+      completedDate: o.completed_date || ''
+    }));
+
+    const shoppingTrips = trip.data.map(t => {
+      const items = si.data
+        .filter(x => x.trip_id === t.id)
+        .map(x => ({ ingId: x.ing_id, qty: Number(x.qty), unitPrice: Number(x.unit_price) }));
+      return {
+        id: t.id, date: t.date, shop: t.shop || '', total: Number(t.total),
+        receiptImg: t.receipt_img || '', items
+      };
+    });
+
+    const activityLog = log.data.map(l => ({
+      type: l.type || '',
+      action: l.action || '',
+      detail: l.detail || '',
+      time: typeof l.time === 'string'
+        ? new Date(l.time).toLocaleString('en-SG', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})
+        : String(l.time || ''),
+      entityType: l.entity_type || '',
+      entityId: l.entity_id || null,
+      fieldChanges: l.field_changes || null
+    }));
+
+    return { ok: true, ingredients, priceHistory, recipes, orders, shoppingTrips, activityLog };
+  } catch (e) {
+    console.error('Supabase load error:', e);
+    return { ok: false, error: e.message || String(e) };
+  }
+}
+
+// ── DISPATCH ──────────────────────────────────────────────────
+async function dispatchWrite(action, d) {
+  switch (action) {
+    case 'addIngredient':      return sbAddIngredient(d);
+    case 'editIngredient':     return sbEditIngredient(d);
+    case 'deleteIngredient':   return sbDeleteIngredient(d);
+    case 'addRecipe':          return sbAddRecipe(d);
+    case 'editRecipe':         return sbEditRecipe(d);
+    case 'deleteRecipe':       return sbDeleteRecipe(d);
+    case 'addOrder':           return sbAddOrder(d);
+    case 'updateOrderStatus':  return sbUpdateOrderStatus(d);
+    case 'deleteOrder':        return sbDeleteOrder(d);
+    case 'addShoppingTrip':    return sbAddShoppingTrip(d);
+    case 'deleteShoppingTrip': return sbDeleteShoppingTrip(d);
+    case 'addLog':             return sbAddLog(d);
+    case 'clearLog':           return sbClearLog();
+    default: return { ok: false, error: 'Unknown action: ' + action };
+  }
+}
+
+// ── INGREDIENTS ───────────────────────────────────────────────
+async function sbAddIngredient(d) {
+  const row = { name: d.name, stock: d.stock, unit: d.unit, cost: d.cost };
+  if (d.id) row.id = d.id;
+  const { data, error } = await sb.from('ingredients').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  if (d.date && Number(d.cost) > 0) {
+    await sb.from('price_history').insert({ ing_id: data.id, date: d.date, cost: d.cost });
+  }
+  return { ok: true, id: data.id };
+}
+async function sbEditIngredient(d) {
+  const { error } = await sb.from('ingredients')
+    .update({ name: d.name, stock: d.stock, unit: d.unit, cost: d.cost })
+    .eq('id', d.id);
+  if (error) return { ok: false, error: error.message };
+  if (d.priceChanged && d.date && Number(d.cost) > 0) {
+    await sb.from('price_history').insert({ ing_id: d.id, date: d.date, cost: d.cost });
+  }
+  return { ok: true };
+}
+async function sbDeleteIngredient(d) {
+  const { error } = await sb.from('ingredients').delete().eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── RECIPES ───────────────────────────────────────────────────
+async function sbAddRecipe(d) {
+  const row = {
+    name: d.name,
+    yield: d.yield || '',
+    suggested_sell_price: d.sellPrice ?? d.suggestedSellPrice ?? 0,
+    default_labour: d.defaultLabour ?? 20,
+    default_electricity: d.defaultElectricity ?? 5,
+    default_packing_per_unit: d.defaultPackingPerUnit ?? 2
+  };
+  if (d.id) row.id = d.id;
+  const { data, error } = await sb.from('recipes').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  const riRows = (d.ingredients || []).map(ri => ({
+    recipe_id: data.id, ing_id: ri.ingId, qty: ri.qty, unit: ri.unit || null
+  }));
+  if (riRows.length) {
+    const { error: e2 } = await sb.from('recipe_ingredients').insert(riRows);
+    if (e2) return { ok: false, error: e2.message };
+  }
+  return { ok: true, id: data.id };
+}
+async function sbEditRecipe(d) {
+  const { error } = await sb.from('recipes').update({
+    name: d.name,
+    yield: d.yield || '',
+    suggested_sell_price: d.sellPrice ?? d.suggestedSellPrice ?? 0,
+    default_labour: d.defaultLabour ?? 20,
+    default_electricity: d.defaultElectricity ?? 5,
+    default_packing_per_unit: d.defaultPackingPerUnit ?? 2
+  }).eq('id', d.id);
+  if (error) return { ok: false, error: error.message };
+  await sb.from('recipe_ingredients').delete().eq('recipe_id', d.id);
+  const riRows = (d.ingredients || []).map(ri => ({
+    recipe_id: d.id, ing_id: ri.ingId, qty: ri.qty, unit: ri.unit || null
+  }));
+  if (riRows.length) {
+    const { error: e2 } = await sb.from('recipe_ingredients').insert(riRows);
+    if (e2) return { ok: false, error: e2.message };
+  }
+  return { ok: true };
+}
+async function sbDeleteRecipe(d) {
+  const { error } = await sb.from('recipes').delete().eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── ORDERS ────────────────────────────────────────────────────
+async function sbAddOrder(d) {
+  const row = {
+    customer: d.customer,
+    customer_phone: d.customerPhone || '',
+    customer_email: d.customerEmail || '',
+    customer_address: d.customerAddress || '',
+    recipe_id: d.recipeId,
+    qty: d.qty,
+    note: d.note || '',
+    due_date: d.dueDate || null,
+    status: d.status || 'pending',
+    sell_price_per_unit: d.sellPricePerUnit ?? d.sellPriceSnapshot ?? 0,
+    labour: d.labour ?? null,
+    electricity: d.electricity ?? null,
+    packing_per_unit: d.packingPerUnit ?? null,
+    transport_cost: d.transportCost ?? 0,
+    ingredient_cost: d.ingredientCost ?? 0,
+    cake_cost: d.cakeCost ?? (d.ingredientCost ?? 0),
+    ingredient_snapshot: d.ingredientSnapshot || []
+  };
+  if (d.id) row.id = d.id;
+  const { data, error } = await sb.from('orders').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+async function sbUpdateOrderStatus(d) {
+  const updates = { status: d.status };
+  if (d.completedDate !== undefined) updates.completed_date = d.completedDate || null;
+  const { error } = await sb.from('orders').update(updates).eq('id', d.id);
+  if (error) return { ok: false, error: error.message };
+  // Apply stock deltas (mark-Done deducts; Undo restores)
+  if (Array.isArray(d.stockDeltas)) {
+    for (const delta of d.stockDeltas) {
+      const { data: ing, error: ge } = await sb.from('ingredients').select('stock').eq('id', delta.ingId).single();
+      if (ge || !ing) continue;
+      const newStock = Math.round((Number(ing.stock) + Number(delta.delta)) * 1000) / 1000;
+      await sb.from('ingredients').update({ stock: newStock }).eq('id', delta.ingId);
+    }
+  }
+  return { ok: true };
+}
+async function sbDeleteOrder(d) {
+  const { error } = await sb.from('orders').delete().eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── SHOPPING ──────────────────────────────────────────────────
+async function sbAddShoppingTrip(d) {
+  const row = { date: d.date, shop: d.shop || '', total: d.total, receipt_img: d.receiptImg || '' };
+  if (d.id) row.id = d.id;
+  const { data: trip, error } = await sb.from('shopping_trips').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  const itemRows = (d.items || []).map(i => ({
+    trip_id: trip.id, ing_id: i.ingId, qty: i.qty, unit_price: i.unitPrice
+  }));
+  if (itemRows.length) {
+    const { error: e2 } = await sb.from('shopping_items').insert(itemRows);
+    if (e2) return { ok: false, error: e2.message };
+  }
+  // Update each ingredient's stock + (if unit price > 0) cost + price history
+  for (const item of d.items || []) {
+    const { data: ing } = await sb.from('ingredients').select('stock, cost').eq('id', item.ingId).single();
+    if (!ing) continue;
+    const updates = { stock: Math.round((Number(ing.stock) + Number(item.qty)) * 1000) / 1000 };
+    if (Number(item.unitPrice) > 0) {
+      updates.cost = item.unitPrice;
+      await sb.from('price_history').insert({ ing_id: item.ingId, date: d.date, cost: item.unitPrice });
+    }
+    await sb.from('ingredients').update(updates).eq('id', item.ingId);
+  }
+  return { ok: true, id: trip.id };
+}
+async function sbDeleteShoppingTrip(d) {
+  const { error } = await sb.from('shopping_trips').delete().eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── ACTIVITY LOG ──────────────────────────────────────────────
+async function sbAddLog(d) {
+  const row = {
+    type: d.type || null,
+    action: d.action || null,
+    detail: d.detail || null,
+    entity_type: d.entityType || null,
+    entity_id: d.entityId || null,
+    field_changes: d.fieldChanges || null
+    // time defaults to now() in the schema
+  };
+  const { error } = await sb.from('activity_log').insert(row);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+async function sbClearLog() {
+  const { error } = await sb.from('activity_log').delete().gt('id', 0);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 // Banner shown when not connected
@@ -248,9 +542,12 @@ function unitOptionsHtml(selected, family){
 
 // ─── ACTIVITY LOG ────────────────────────────────────────────────────────────
 const activityLog = [];
-function logAction(type, action, detail) {
+function logAction(type, action, detail, entityType, entityId, fieldChanges) {
   activityLog.unshift({
     type, action, detail,
+    entityType: entityType || '',
+    entityId: entityId || null,
+    fieldChanges: fieldChanges || null,
     time: new Date().toLocaleString('en-SG',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
   });
 }
@@ -323,14 +620,15 @@ function switchTab(tab,btn){
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function renderDashboard(){
   const done=S.orders.filter(o=>o.status==='done');
-  // Prefer snapshot values stored on the order (historical truth);
-  // fall back to live recipe values for orders that pre-date the snapshot feature.
+  // Revenue prefers per-order sell price snapshot; falls back to recipe's suggested price.
   const revenue = done.reduce((s,o)=>{
     const r = getRecipe(o.recipeId);
-    const sell = parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
+    const sell = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
     return s + sell * o.qty;
   }, 0);
+  // Cost = cake cost (ingredients + labour + electricity + packing). Transport excluded.
   const cost = done.reduce((s,o)=>{
+    if (parseFloat(o.cakeCost) > 0) return s + parseFloat(o.cakeCost);
     if (parseFloat(o.ingredientCost) > 0) return s + parseFloat(o.ingredientCost);
     const r = getRecipe(o.recipeId);
     return s + (r ? calcIngCost(r) * o.qty : 0);
@@ -392,8 +690,9 @@ function renderInventory(){
             <td style="font-weight:500">${esc(i.name)}</td><td>${i.stock}</td><td>${esc(i.unit)}</td>
             <td>${fmtMoney(i.cost)} ${chgHtml}</td>
             <td><span class="badge badge-${st}">${st==='danger'?'Critical':st==='warn'?'Low':'In stock'}</span></td>
-            <td><div style="display:flex;gap:4px">
-              <button class="btn btn-sm" onclick="showPriceHistory(${i.id})">History</button>
+            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="showPriceHistory(${i.id})">Prices</button>
+              <button class="btn btn-sm" onclick="showEntityHistory('ingredient', ${i.id}, ${JSON.stringify(i.name)})">Log</button>
               <button class="btn btn-sm" onclick="showEditIngredient(${i.id})">Edit</button>
               <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this ingredient?'))deleteIng(${i.id})">Del</button>
             </div></td></tr>`;
@@ -452,9 +751,11 @@ function renderRecipes(){
             <td style="font-size:12px;white-space:normal">${esc(r.yield)}</td>
             <td>${fmtMoney(cost)}</td><td>${fmtMoney(r.sellPrice)}</td>
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${fmtPct(margin)}</span></td>
-            <td><div style="display:flex;gap:4px">
+            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="showViewRecipe(${r.id})">View</button>
               <button class="btn btn-sm" onclick="showEditRecipe(${r.id})">Edit</button>
+              <button class="btn btn-sm" onclick="showCloneRecipe(${r.id})">Clone</button>
+              <button class="btn btn-sm" onclick="showEntityHistory('recipe', ${r.id}, ${JSON.stringify(r.name)})">Log</button>
               <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete recipe?'))deleteRecipe(${r.id})">Del</button>
             </div></td></tr>`;
         }).join('')}</tbody>
@@ -471,8 +772,9 @@ function renderOrders(){
     return dateKey(b.completedDate||b.dueDate).localeCompare(dateKey(a.completedDate||a.dueDate));
   });
   const todayKey = today();
-  const totalRevenueDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0)) * o.qty, 0);
-  const totalCostDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.ingredientCost) || 0), 0);
+  const totalRevenueDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0)) * o.qty, 0);
+  // Cake cost (NOT including transport — that's an invoiced pass-through)
+  const totalCostDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || 0), 0);
   const totalProfitDone = totalRevenueDone - totalCostDone;
   document.getElementById('tab-orders').innerHTML = `
     <div class="metric-grid" style="margin-bottom:1rem">
@@ -488,8 +790,9 @@ function renderOrders(){
         <tbody>${orders.map(o => {
           const r = getRecipe(o.recipeId);
           const overdue = o.status === 'pending' && dateKey(o.dueDate) < todayKey;
-          const sell = (parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0)) * o.qty;
-          const cost = parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
+          const sell = (parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0)) * o.qty;
+          // Use cake cost (ingredients + labour + electricity + packing) — not transport
+          const cost = parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
           const margin = sell > 0 ? Math.round((sell - cost) / sell * 100) : 0;
           return `<tr>
             <td style="font-weight:500">${esc(o.customer)}</td>
@@ -503,6 +806,7 @@ function renderOrders(){
             <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span></td>
             <td><div style="display:flex;gap:4px;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button>
+              <button class="btn btn-sm" onclick="showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Log</button>
               <button class="btn btn-sm ${o.status==='pending'?'btn-chocolate':''}" onclick="cycleStatus(${o.id})">${o.status==='pending'?'✓ Done':'Undo'}</button>
               <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete order?'))deleteOrder(${o.id})">Del</button>
             </div></td></tr>`;
@@ -516,11 +820,11 @@ function renderPricing(){
   document.getElementById('tab-pricing').innerHTML=`
     <div class="two-col">
       <div class="card">
-        <div class="card-head"><span class="card-title">Pricing Calculator</span></div>
+        <div class="card-head"><span class="card-title">Recipe Cost Estimator</span></div>
         <div class="form-group" style="margin-bottom:12px"><label>Recipe</label><select id="pricing-recipe" onchange="calcPricing()">${recipeOpts()}</select></div>
         <div class="form-row">
           <div class="form-group"><label>Overhead %</label><input type="number" id="pricing-overhead" value="20" onchange="calcPricing()"></div>
-          <div class="form-group"><label>Labour (${CURRENCY})</label><input type="number" id="pricing-labour" value="8" onchange="calcPricing()"></div>
+          <div class="form-group"><label>Labour (${CURRENCY})</label><input type="number" id="pricing-labour" value="20" onchange="calcPricing()"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px"><label>Target margin %</label><input type="number" id="pricing-margin" value="40" onchange="calcPricing()"></div>
       </div>
@@ -564,36 +868,115 @@ function calcPricing(){
 }
 
 // ─── ACTIVITY LOG ────────────────────────────────────────────────────────────
+let _logSearchQ = '', _logEntityFilter = '';
+function setLogSearch(q){ _logSearchQ = q || ''; renderActivityLogBody(); }
+function setLogFilter(f){ _logEntityFilter = f || ''; renderActivityLogBody(); }
+
 function renderActivityLog(){
-  const typeColors={add:'log-add',edit:'log-edit',delete:'log-delete',order:'log-order',shop:'log-shop'};
-  document.getElementById('tab-activitylog').innerHTML=`
+  const chip = (label, val) => {
+    const active = _logEntityFilter === val;
+    return `<button class="btn btn-sm" style="${active?'background:var(--caramel);color:#fff':''}" onclick="setLogFilter('${val}')">${label}</button>`;
+  };
+  document.getElementById('tab-activitylog').innerHTML = `
     <div class="card">
       <div class="card-head">
         <span class="card-title">Activity Log</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:12px;color:var(--text-muted)">${activityLog.length} entries</span>
-          ${activityLog.length>0?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Clear all log entries?')){activityLog.length=0;persistWrite('clearLog',{});renderActivityLog()}">Clear log</button>`:''}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="log-search" type="search" placeholder="Search..." value="${esc(_logSearchQ)}" oninput="setLogSearch(this.value)" style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;width:160px">
+          <span style="font-size:11px;color:var(--text-muted)">${activityLog.length} total</span>
         </div>
       </div>
-      ${activityLog.length===0
-        ?'<div class="empty-state">No activity recorded yet.<br>Changes you make will appear here.</div>'
-        :activityLog.map(l=>`
-          <div class="log-entry">
-            <div class="log-dot ${typeColors[l.type]||'log-edit'}"></div>
-            <div style="flex:1">
-              <div style="display:flex;justify-content:space-between;align-items:baseline">
-                <span class="log-action">${esc(l.action)}</span>
-                <span class="log-time">${esc(l.time)}</span>
-              </div>
-              <div class="log-detail">${esc(l.detail)}</div>
-            </div>
-          </div>`).join('')}
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        ${chip('All','')} ${chip('Ingredients','ingredient')} ${chip('Recipes','recipe')} ${chip('Orders','order')} ${chip('Trips','trip')}
+      </div>
+      <div id="log-body"></div>
+      ${activityLog.length>0?`<div style="margin-top:10px;text-align:right"><button class="btn btn-sm btn-danger" onclick="if(confirm('Clear ALL log entries? This cannot be undone.')){activityLog.length=0;persistWrite('clearLog',{});renderActivityLog()}">Clear log</button></div>`:''}
     </div>`;
+  renderActivityLogBody();
+}
+function renderActivityLogBody(){
+  const el = document.getElementById('log-body'); if (!el) return;
+  const typeColors = {add:'log-add',edit:'log-edit',delete:'log-delete',order:'log-order',shop:'log-shop'};
+  const q = _logSearchQ.trim().toLowerCase();
+  const filtered = activityLog.filter(l => {
+    if (_logEntityFilter && l.entityType !== _logEntityFilter) return false;
+    if (q) {
+      const hay = ((l.action||'') + ' ' + (l.detail||'')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty-state">No matching log entries.</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(l => `
+    <div class="log-entry">
+      <div class="log-dot ${typeColors[l.type]||'log-edit'}"></div>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="log-action">${esc(l.action)}</span>
+          <span class="log-time">${esc(l.time)}</span>
+        </div>
+        <div class="log-detail">${esc(l.detail)}</div>
+        ${l.fieldChanges ? renderFieldChanges(l.fieldChanges) : ''}
+      </div>
+    </div>`).join('');
+}
+function renderFieldChanges(fc){
+  if (!fc || typeof fc !== 'object') return '';
+  const rows = Object.entries(fc).map(([k, v]) => {
+    const oldV = v && typeof v === 'object' ? v.old : '';
+    const newV = v && typeof v === 'object' ? v.new : '';
+    return `<tr><td style="padding:1px 6px 1px 0;color:var(--text-muted)">${esc(k)}</td><td style="padding:1px 6px;text-decoration:line-through;color:var(--danger)">${esc(String(oldV))}</td><td>→</td><td style="padding:1px 0 1px 6px;color:var(--success)">${esc(String(newV))}</td></tr>`;
+  }).join('');
+  return `<table style="font-size:11px;margin-top:4px"><tbody>${rows}</tbody></table>`;
+}
+
+// Per-entity history (called from "History" buttons on ingredient/recipe/order rows).
+function showEntityHistory(entityType, entityId, label) {
+  const entries = activityLog.filter(l => l.entityType === entityType && l.entityId === entityId);
+  const typeColors = {add:'log-add',edit:'log-edit',delete:'log-delete',order:'log-order',shop:'log-shop'};
+  const body = entries.length === 0
+    ? '<div class="empty-state">No history recorded for this item yet.</div>'
+    : entries.map(l => `
+        <div class="log-entry">
+          <div class="log-dot ${typeColors[l.type]||'log-edit'}"></div>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span class="log-action">${esc(l.action)}</span>
+              <span class="log-time">${esc(l.time)}</span>
+            </div>
+            <div class="log-detail">${esc(l.detail)}</div>
+            ${l.fieldChanges ? renderFieldChanges(l.fieldChanges) : ''}
+          </div>
+        </div>`).join('');
+  showModal(`<div class="modal-title">History — ${esc(label)}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${entries.length} entr${entries.length===1?'y':'ies'}</div>
+    ${body}
+    <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
 }
 
 // ─── MODALS ───────────────────────────────────────────────────────────────────
-function showModal(html){ document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
-function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+// Modal with dirty-guard: clicking outside or Esc only closes if no input was typed.
+let _modalDirty = false;
+function showModal(html){
+  _modalDirty = false;
+  document.getElementById('modal-root').innerHTML =
+    `<div class="modal-overlay" onclick="if(event.target===this)tryCloseModal()"><div class="modal" oninput="_modalDirty=true" onchange="_modalDirty=true">${html}</div></div>`;
+}
+function closeModal(){
+  _modalDirty = false;
+  document.getElementById('modal-root').innerHTML = '';
+}
+function tryCloseModal(){
+  if (_modalDirty && !confirm('Discard unsaved changes?')) return;
+  closeModal();
+}
+// Esc key also goes through the dirty guard
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.querySelector('.modal-overlay')) tryCloseModal();
+});
 
 function showAddIngredient(){
   showModal(`<div class="modal-title">Add Ingredient</div>
@@ -632,7 +1015,7 @@ async function saveIngredient(){
   const id=S.nextIngId++;
   S.ingredients.push({id,name,stock,unit,cost});
   S.priceHistory[id]=[{date:today(),cost}];
-  logAction('add','Ingredient added',`${name} — ${stock} ${unit} for ${fmtMoney(price)} (${fmtMoney(cost)}/${unit})`);
+  logAction('add','Ingredient added',`${name} — ${stock} ${unit} for ${fmtMoney(price)} (${fmtMoney(cost)}/${unit})`,'ingredient',id);
   closeModal(); renderInventory();
   await persistWrite('addIngredient', {id, name, stock, unit, cost, date:today()}, activityLog[0]);
 }
@@ -703,13 +1086,17 @@ async function saveEditIngredient(id){
   else if (priceChanged) detail += ` — price: ${fmtMoney(oldCost)} → ${fmtMoney(newCost)}`;
   if (newStock !== oldStock && !priceChangedByPurchase) detail += ` — stock: ${oldStock} → ${newStock} ${newUnit}`;
   if (newUnit !== oldUnit) detail += ` — unit: ${oldUnit} → ${newUnit}`;
-  logAction('edit','Ingredient updated', detail);
+  const fc = diffFields(
+    { name: oldName, stock: oldStock, unit: oldUnit, cost: oldCost },
+    { name: newName, stock: newStock, unit: newUnit, cost: newCost }
+  );
+  logAction('edit','Ingredient updated', detail, 'ingredient', id, fc);
   closeModal(); renderInventory();
   await persistWrite('editIngredient', {id:i.id, name:i.name, stock:i.stock, unit:i.unit, cost:i.cost, priceChanged, date:today()}, activityLog[0]);
 }
 async function deleteIng(id){
   const i=getIng(id);
-  logAction('delete','Ingredient deleted',i?i.name:'unknown');
+  logAction('delete','Ingredient deleted', i?i.name:'unknown', 'ingredient', id);
   S.ingredients=S.ingredients.filter(x=>x.id!==id); renderInventory();
   await persistWrite('deleteIngredient', {id}, activityLog[0]);
 }
@@ -863,13 +1250,13 @@ async function saveTrip(){
   const tripId=S.nextTripId++;
   const receiptImg = receiptB64?`data:${receiptMime};base64,${receiptB64}`:null;
   S.shoppingTrips.push({id:tripId,date,shop,items,total,receiptImg});
-  logAction('shop','Shopping trip saved',`${shop||'Unnamed shop'} — ${items.length} items, total ${fmtMoney(total)}`);
+  logAction('shop','Shopping trip saved',`${shop||'Unnamed shop'} — ${items.length} items, total ${fmtMoney(total)}`,'trip',tripId);
   closeModal(); renderShopping();
   await persistWrite('addShoppingTrip', {id:tripId, date, shop, total, items, receiptImg: receiptImg||''}, activityLog[0]);
 }
 async function deleteTrip(id){
   const t=S.shoppingTrips.find(x=>x.id===id);
-  logAction('delete','Shopping trip deleted',t?`${fmtDate(t.date)} — ${t.shop}`:'');
+  logAction('delete','Shopping trip deleted',t?`${fmtDate(t.date)} — ${t.shop}`:'','trip',id);
   S.shoppingTrips=S.shoppingTrips.filter(x=>x.id!==id); renderShopping();
   await persistWrite('deleteShoppingTrip', {id}, activityLog[0]);
 }
@@ -879,32 +1266,79 @@ function viewReceiptFull(id){
 }
 
 function showAddRecipe(){
-  showRecipeForm({ id: null, name: '', yield: '', sellPrice: 0, ingredients: [] }, 'Add');
+  showRecipeForm({ id: null, name: '', yield: '', sellPrice: 0,
+    defaultLabour: 20, defaultElectricity: 5, defaultPackingPerUnit: 2,
+    ingredients: [] }, 'Add');
 }
 function showEditRecipe(id){
   const r = getRecipe(id);
   if (!r) return;
   showRecipeForm(r, 'Edit');
 }
+// Open Add form pre-filled from an existing recipe (Clone button).
+function showCloneRecipe(srcId){
+  const src = getRecipe(srcId);
+  if (!src) return;
+  const clone = {
+    id: null,
+    name: 'Copy of ' + (src.name || 'recipe'),
+    yield: src.yield || '',
+    sellPrice: src.sellPrice || 0,
+    defaultLabour: src.defaultLabour ?? 20,
+    defaultElectricity: src.defaultElectricity ?? 5,
+    defaultPackingPerUnit: src.defaultPackingPerUnit ?? 2,
+    ingredients: (src.ingredients || []).map(ri => ({ ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' }))
+  };
+  showRecipeForm(clone, 'Add');
+}
 function showRecipeForm(r, mode){
   const isEdit = mode === 'Edit';
+  const startFromPicker = !isEdit
+    ? `<div class="form-row"><div class="form-group"><label>Start from existing recipe (optional)</label>
+        <select id="m-rstartfrom" onchange="prefillRecipeFromExisting(this.value)">
+          <option value="">— blank —</option>
+          ${S.recipes.map(rr => `<option value="${rr.id}">${esc(rr.name)}</option>`).join('')}
+        </select></div></div>`
+    : '';
   showModal(`<div class="modal-title">${mode} Recipe</div>
+    ${startFromPicker}
     <div class="form-row"><div class="form-group"><label>Recipe name</label><input id="m-rname" value="${esc(r.name||'')}"></div></div>
     <div class="form-row"><div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${esc(r.yield||'')}"></div></div>
-    <div class="form-row"><div class="form-group"><label>Sell price (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div></div>
-    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 8px">Ingredients</div>
+    <div class="form-row"><div class="form-group"><label>Suggested sell price per unit (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div></div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Batch costs (defaults for new orders)</div>
+    <div class="form-row">
+      <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-rlabour" type="number" value="${r.defaultLabour ?? 20}" step="0.01"></div>
+      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-relec" type="number" value="${r.defaultElectricity ?? 5}" step="0.01"></div>
+      <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-rpack" type="number" value="${r.defaultPackingPerUnit ?? 2}" step="0.01"></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Ingredients</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Pick any compatible unit per ingredient — the system converts at costing time.</div>
     <div id="m-ings"></div>
     <button class="btn btn-sm" onclick="addRecipeIngRow()" style="margin-bottom:12px">+ Add ingredient</button>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="${isEdit?`saveEditRecipe(${r.id})`:'saveRecipe()'}">${isEdit?'Save changes':'Save recipe'}</button>
-      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="tryCloseModal()">Cancel</button>
     </div>`);
   if (r.ingredients && r.ingredients.length) {
     r.ingredients.forEach(ri => addRecipeIngRow(ri));
   } else {
     addRecipeIngRow();
   }
+}
+// "Start from existing" handler — repopulates the open Add Recipe form.
+function prefillRecipeFromExisting(srcId){
+  if (!srcId) return;
+  const src = getRecipe(parseInt(srcId));
+  if (!src) return;
+  document.getElementById('m-rname').value  = 'Copy of ' + (src.name || '');
+  document.getElementById('m-ryield').value = src.yield || '';
+  document.getElementById('m-rprice').value = src.sellPrice || 0;
+  document.getElementById('m-rlabour').value = src.defaultLabour ?? 20;
+  document.getElementById('m-relec').value   = src.defaultElectricity ?? 5;
+  document.getElementById('m-rpack').value   = src.defaultPackingPerUnit ?? 2;
+  document.getElementById('m-ings').innerHTML = '';
+  (src.ingredients || []).forEach(ri => addRecipeIngRow({ ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' }));
+  _modalDirty = true;
 }
 function addRecipeIngRow(prefill){
   const div = document.createElement('div'); div.className = 'ing-row';
@@ -942,15 +1376,31 @@ function readRecipeIngsFromForm(){
   });
   return ings;
 }
+function readRecipeBatchCostsFromForm(){
+  return {
+    defaultLabour:           parseFloat(document.getElementById('m-rlabour').value) || 0,
+    defaultElectricity:      parseFloat(document.getElementById('m-relec').value)   || 0,
+    defaultPackingPerUnit:   parseFloat(document.getElementById('m-rpack').value)   || 0
+  };
+}
 async function saveRecipe(){
   const name=document.getElementById('m-rname').value.trim(); if(!name) return alert('Please enter a recipe name.');
   const ings = readRecipeIngsFromForm();
   if (ings.length === 0) return alert('Add at least one ingredient.');
   const sellPrice=parseFloat(document.getElementById('m-rprice').value)||0;
+  const batch = readRecipeBatchCostsFromForm();
   const id = S.nextRecipeId++;
-  const recipe = { id, name, yield: document.getElementById('m-ryield').value || '1 unit', sellPrice, ingredients: ings };
+  const recipe = {
+    id, name,
+    yield: document.getElementById('m-ryield').value || '1 unit',
+    sellPrice,
+    defaultLabour: batch.defaultLabour,
+    defaultElectricity: batch.defaultElectricity,
+    defaultPackingPerUnit: batch.defaultPackingPerUnit,
+    ingredients: ings
+  };
   S.recipes.push(recipe);
-  logAction('add','Recipe added',`${name} — sell price ${fmtMoney(sellPrice)}, ${ings.length} ingredients`);
+  logAction('add','Recipe added', `${name} — sell ${fmtMoney(sellPrice)}/unit, ${ings.length} ingredients, batch ${fmtMoney(batch.defaultLabour)}+${fmtMoney(batch.defaultElectricity)}+${fmtMoney(batch.defaultPackingPerUnit)}/u`, 'recipe', id);
   closeModal(); renderRecipes();
   await persistWrite('addRecipe', recipe, activityLog[0]);
 }
@@ -960,13 +1410,26 @@ async function saveEditRecipe(id){
   const name=document.getElementById('m-rname').value.trim(); if(!name) return alert('Please enter a recipe name.');
   const ings = readRecipeIngsFromForm();
   if (ings.length === 0) return alert('Add at least one ingredient.');
-  r.name = name;
-  r.yield = document.getElementById('m-ryield').value || '1 unit';
-  r.sellPrice = parseFloat(document.getElementById('m-rprice').value) || 0;
-  r.ingredients = ings;
-  logAction('edit','Recipe updated',`${name} — sell price ${fmtMoney(r.sellPrice)}, ${ings.length} ingredients`);
+  const batch = readRecipeBatchCostsFromForm();
+  // Capture before-state for audit
+  const before = { name: r.name, yield: r.yield, sellPrice: r.sellPrice, defaultLabour: r.defaultLabour, defaultElectricity: r.defaultElectricity, defaultPackingPerUnit: r.defaultPackingPerUnit };
+  const after  = { name, yield: document.getElementById('m-ryield').value || '1 unit', sellPrice: parseFloat(document.getElementById('m-rprice').value) || 0, ...batch };
+  const fieldChanges = diffFields(before, after);
+  Object.assign(r, after, { ingredients: ings });
+  logAction('edit','Recipe updated', `${name} — sell ${fmtMoney(r.sellPrice)}/unit, ${ings.length} ingredients`, 'recipe', id, fieldChanges);
   closeModal(); renderRecipes();
-  await persistWrite('editRecipe', { id, name: r.name, yield: r.yield, sellPrice: r.sellPrice, ingredients: ings }, activityLog[0]);
+  await persistWrite('editRecipe',
+    { id, name: r.name, yield: r.yield, sellPrice: r.sellPrice, ...batch, ingredients: ings },
+    activityLog[0]
+  );
+}
+// Compute before→after diff for audit log; returns null if nothing changed.
+function diffFields(before, after){
+  const changes = {};
+  for (const k in after) {
+    if (before[k] !== after[k]) changes[k] = { old: before[k], new: after[k] };
+  }
+  return Object.keys(changes).length ? changes : null;
 }
 function showViewRecipe(id){
   const r=getRecipe(id); if(!r) return;
@@ -993,7 +1456,7 @@ function showViewRecipe(id){
 }
 async function deleteRecipe(id){
   const r=getRecipe(id);
-  logAction('delete','Recipe deleted',r?r.name:'');
+  logAction('delete','Recipe deleted',r?r.name:'','recipe',id);
   S.recipes=S.recipes.filter(x=>x.id!==id); renderRecipes();
   await persistWrite('deleteRecipe', {id}, activityLog[0]);
 }
@@ -1003,6 +1466,7 @@ function showAddOrder(){
     alert('Add a recipe first — orders need a recipe to compute costing.');
     return;
   }
+  const firstRecipe = S.recipes[0];
   showModal(`<div class="modal-title">New Order</div>
     <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Customer</div>
     <div class="form-row">
@@ -1016,31 +1480,67 @@ function showAddOrder(){
     <div class="divider"></div>
     <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Order</div>
     <div class="form-row">
-      <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="updateOrderHelper()">${recipeOpts()}</select></div>
+      <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="onOrderRecipeChanged()">${recipeOpts()}</select></div>
       <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="1" min="1" oninput="updateOrderHelper()"></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${today()}"></div></div>
     <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" placeholder="Special requests..."></div></div>
-    <div id="order-helper" style="background:var(--bg-soft,#FAF7F2);border-radius:8px;padding:10px 12px;font-size:12px;margin:8px 0"></div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px">Pricing &amp; cost (pre-filled from recipe, editable per order)</div>
+    <div class="form-row">
+      <div class="form-group"><label>Sell price / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${firstRecipe.sellPrice || 0}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-olabour" type="number" step="0.01" value="${firstRecipe.defaultLabour ?? 20}" oninput="updateOrderHelper()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${firstRecipe.defaultElectricity ?? 5}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-opack" type="number" step="0.01" value="${firstRecipe.defaultPackingPerUnit ?? 2}" oninput="updateOrderHelper()"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="0" oninput="updateOrderHelper()"></div></div>
+    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 6px">Transport is invoiced to the customer separately — not part of cake cost or margin.</div>
+    <div id="order-helper" style="background:#FAF7F2;border-radius:8px;padding:10px 12px;font-size:12px;margin:8px 0"></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem">
       <button class="btn btn-primary" onclick="saveOrder()">Place order</button>
-      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="tryCloseModal()">Cancel</button>
     </div>`);
+  updateOrderHelper();
+}
+// Recipe change handler — refills the cost fields from the new recipe's defaults.
+function onOrderRecipeChanged(){
+  const r = getRecipe(parseInt(document.getElementById('m-orec').value));
+  if (!r) return;
+  document.getElementById('m-osell').value   = r.sellPrice || 0;
+  document.getElementById('m-olabour').value = r.defaultLabour ?? 20;
+  document.getElementById('m-oelec').value   = r.defaultElectricity ?? 5;
+  document.getElementById('m-opack').value   = r.defaultPackingPerUnit ?? 2;
   updateOrderHelper();
 }
 function updateOrderHelper(){
   const el = document.getElementById('order-helper'); if (!el) return;
   const r = getRecipe(parseInt(document.getElementById('m-orec').value));
-  const qty = parseInt(document.getElementById('m-oqty').value) || 1;
+  const qty       = parseInt(document.getElementById('m-oqty').value) || 1;
+  const sellPerU  = parseFloat(document.getElementById('m-osell').value) || 0;
+  const labour    = parseFloat(document.getElementById('m-olabour').value) || 0;
+  const elec      = parseFloat(document.getElementById('m-oelec').value) || 0;
+  const packPerU  = parseFloat(document.getElementById('m-opack').value) || 0;
+  const transport = parseFloat(document.getElementById('m-otrans').value) || 0;
   if (!r) { el.textContent = 'Pick a recipe.'; return; }
-  const cost = calcIngCost(r) * qty;
-  const revenue = r.sellPrice * qty;
-  const profit = revenue - cost;
-  const margin = revenue > 0 ? Math.round(profit / revenue * 100) : 0;
+  const ingredientCost = calcIngCost(r) * qty;
+  const cakeCost = ingredientCost + labour + elec + (packPerU * qty);
+  const revenue  = sellPerU * qty;
+  const profit   = revenue - cakeCost;
+  const margin   = revenue > 0 ? Math.round(profit / revenue * 100) : 0;
+  const invoiceTotal = revenue + transport;
+  const marginColor = margin >= 40 ? 'var(--success)' : margin >= 20 ? 'var(--warning)' : 'var(--danger)';
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between"><span>Ingredient cost (${qty}×)</span><span><strong>${fmtMoney(cost)}</strong></span></div>
-    <div style="display:flex;justify-content:space-between"><span>Sell total</span><span><strong>${fmtMoney(revenue)}</strong></span></div>
-    <div style="display:flex;justify-content:space-between"><span>Estimated profit</span><span style="font-weight:600;color:${margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)'}">${fmtMoney(profit)} (${margin}%)</span></div>`;
+    <div style="display:flex;justify-content:space-between"><span>Ingredients (${qty}×)</span><span>${fmtMoney(ingredientCost)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span>Labour</span><span>${fmtMoney(labour)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span>Electricity</span><span>${fmtMoney(elec)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span>Packing (${qty}× ${fmtMoney(packPerU)})</span><span>${fmtMoney(packPerU * qty)}</span></div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border-light);padding-top:4px;margin-top:4px;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span>Sell total (${qty} × ${fmtMoney(sellPerU)})</span><span>${fmtMoney(revenue)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:600;color:${marginColor}"><span>Cake profit</span><span>${fmtMoney(profit)} (${margin}%)</span></div>
+    <div style="border-top:1px dashed var(--border-light);margin:6px 0 4px"></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>`;
 }
 // Build a snapshot of recipe ingredients scaled by orderQty, in storage units.
 function buildOrderSnapshot(recipe, orderQty){
@@ -1075,7 +1575,14 @@ async function saveOrder(){
   const qty=parseInt(document.getElementById('m-oqty').value)||1;
   const r=getRecipe(recipeId);
   if (!r) return alert('Pick a recipe.');
+  // Pull the editable cost fields
+  const sellPricePerUnit = parseFloat(document.getElementById('m-osell').value) || 0;
+  const labour           = parseFloat(document.getElementById('m-olabour').value) || 0;
+  const electricity      = parseFloat(document.getElementById('m-oelec').value) || 0;
+  const packingPerUnit   = parseFloat(document.getElementById('m-opack').value) || 0;
+  const transportCost    = parseFloat(document.getElementById('m-otrans').value) || 0;
   const snap = buildOrderSnapshot(r, qty);
+  const cakeCost = snap.ingredientCost + labour + electricity + (packingPerUnit * qty);
   const id = S.nextOrderId++;
   const order = {
     id,
@@ -1084,13 +1591,18 @@ async function saveOrder(){
     note: document.getElementById('m-onote').value,
     dueDate: document.getElementById('m-odate').value,
     status: 'pending',
-    sellPriceSnapshot: r.sellPrice,
+    sellPricePerUnit,
+    sellPriceSnapshot: sellPricePerUnit,  // alias retained for any in-memory consumers
+    labour, electricity, packingPerUnit, transportCost,
     ingredientCost: snap.ingredientCost,
+    cakeCost,
     ingredientSnapshot: snap.lines,
     completedDate: ''
   };
   S.orders.push(order);
-  logAction('order','Order placed',`${customer} — ${r.name} × ${qty}, sell ${fmtMoney(r.sellPrice*qty)}, cost ${fmtMoney(snap.ingredientCost)}`);
+  const revenue = sellPricePerUnit * qty;
+  const profit  = revenue - cakeCost;
+  logAction('order','Order placed', `${customer} — ${r.name} × ${qty}, sell ${fmtMoney(revenue)}, cake cost ${fmtMoney(cakeCost)}, profit ${fmtMoney(profit)}`, 'order', id);
   closeModal(); renderOrders();
   await persistWrite('addOrder', order, activityLog[0]);
 }
@@ -1125,24 +1637,35 @@ async function cycleStatus(id){
   });
   o.status = movingToDone ? 'done' : 'pending';
   o.completedDate = movingToDone ? today() : '';
-  logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`);
+  logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`,'order',o.id);
   renderOrders();
   await persistWrite('updateOrderStatus', { id: o.id, status: o.status, completedDate: o.completedDate, stockDeltas }, activityLog[0]);
 }
 async function deleteOrder(id){
   const o=S.orders.find(x=>x.id===id);
-  logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'');
+  logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'','order',id);
   S.orders=S.orders.filter(x=>x.id!==id); renderOrders();
   await persistWrite('deleteOrder', {id}, activityLog[0]);
 }
 function showOrderDetail(id){
   const o = S.orders.find(x => x.id === id); if (!o) return;
   const r = getRecipe(o.recipeId);
-  const sell = (parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0)) * o.qty;
-  const cost = (parseFloat(o.ingredientCost) || 0);
-  const profit = sell - cost;
-  const margin = sell > 0 ? Math.round(profit / sell * 100) : 0;
+  const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
+  const sell = sellPerU * o.qty;
+  const ingCost   = parseFloat(o.ingredientCost) || 0;
+  const labour    = o.labour    != null ? parseFloat(o.labour)         : null;
+  const elec      = o.electricity != null ? parseFloat(o.electricity)  : null;
+  const packPerU  = o.packingPerUnit != null ? parseFloat(o.packingPerUnit) : null;
+  const transport = parseFloat(o.transportCost) || 0;
+  // cakeCost = snapshot stored value when available, else compute from parts
+  const cakeCost  = parseFloat(o.cakeCost)
+    || (ingCost + (labour ?? 0) + (elec ?? 0) + ((packPerU ?? 0) * o.qty));
+  const profit    = sell - cakeCost;
+  const margin    = sell > 0 ? Math.round(profit / sell * 100) : 0;
+  const invoiceTotal = sell + transport;
   const lines = Array.isArray(o.ingredientSnapshot) ? o.ingredientSnapshot : [];
+  const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
+  const isLegacy = labour == null && elec == null && packPerU == null;
   showModal(`<div class="modal-title">Order #${o.id} — ${esc(o.customer)}</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
       ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp;·&nbsp; ` : ''}
@@ -1153,16 +1676,26 @@ function showOrderDetail(id){
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Due</span><span>${fmtDate(o.dueDate)}</span></div>
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span></div>
     ${o.completedDate ? `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Completed</span><span>${fmtDate(o.completedDate)}</span></div>` : ''}
-    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:8px 0;padding:8px;background:var(--bg-soft,#FAF7F2);border-radius:6px">📝 ${esc(o.note)}</div>` : ''}
+    ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:8px 0;padding:8px;background:#FAF7F2;border-radius:6px">📝 ${esc(o.note)}</div>` : ''}
     <div class="divider"></div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Cost breakdown (snapshot at order time)</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Ingredients (snapshot at order time)</div>
     ${lines.length === 0
-      ? `<div style="color:var(--text-muted);font-size:12px">No snapshot — this order was placed before cost-tracking was added. Showing live recipe cost: ${fmtMoney(r ? calcIngCost(r) * o.qty : 0)}</div>`
+      ? `<div style="color:var(--text-muted);font-size:12px">No ingredient snapshot — live recipe cost: ${fmtMoney(r ? calcIngCost(r) * o.qty : 0)}</div>`
       : lines.map(l => `<div class="history-row"><span>${esc(l.name)} — ${l.qtyEntered} ${esc(l.unit)}</span><span style="font-weight:500">${fmtMoney(l.lineCost)}</span></div>`).join('')}
+    ${isLegacy ? '' : `
     <div class="divider"></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Total ingredient cost</span><span style="font-weight:600">${fmtMoney(cost)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--success)"><span>Total revenue</span><span style="font-weight:600">${fmtMoney(sell)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;font-weight:600"><span>Profit</span><span style="color:${margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)'}">${fmtMoney(profit)} (${margin}%)</span></div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Batch costs</div>
+    <div class="history-row"><span>Labour</span><span style="font-weight:500">${fmtMoney(labour)}</span></div>
+    <div class="history-row"><span>Electricity</span><span style="font-weight:500">${fmtMoney(elec)}</span></div>
+    <div class="history-row"><span>Packing (${o.qty} × ${fmtMoney(packPerU)})</span><span style="font-weight:500">${fmtMoney((packPerU||0) * o.qty)}</span></div>
+    `}
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--success)"><span>Sell (${o.qty} × ${fmtMoney(sellPerU)})</span><span style="font-weight:600">${fmtMoney(sell)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;font-weight:600"><span>Cake profit</span><span style="color:${marginColor}">${fmtMoney(profit)} (${margin}%)</span></div>
+    <div style="border-top:1px dashed var(--border-light);margin:8px 0 4px"></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
     <div style="margin-top:1rem"><button class="btn" onclick="closeModal()">Close</button></div>`);
 }
 
@@ -1189,7 +1722,8 @@ async function init() {
       S.nextOrderId  = S.orders.length         ? Math.max(...S.orders.map(o=>o.id))         + 1 : 1;
       S.nextTripId   = S.shoppingTrips.length  ? Math.max(...S.shoppingTrips.map(t=>t.id))  + 1 : 1;
     } else {
-      showToast('Could not load data from Google Sheets — check your connection', 'error');
+      const err = (result && result.error) || 'unknown error';
+      showToast('Could not load data — ' + err, 'error');
     }
     hideLoading();
   }
