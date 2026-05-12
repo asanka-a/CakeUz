@@ -85,8 +85,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-primary);min-height:100vh}
 /* SHELL — sidebar on the left runs floor-to-ceiling; topbar lives only on the right column */
-.app-shell{display:flex;min-height:100vh;align-items:stretch}
-.sidebar{width:220px;flex-shrink:0;background:var(--warm-white);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:visible;z-index:50}
+.app-shell{display:flex;min-height:100vh;align-items:stretch;position:relative}
+/* Continuous vertical divider that nothing can obscure (sits above the topbar shadow) */
+.app-shell::after{content:'';position:absolute;top:0;left:220px;width:1px;height:100%;background:var(--border);z-index:120;pointer-events:none}
+.sidebar{width:220px;flex-shrink:0;background:var(--warm-white);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:visible;z-index:50}
 .sidebar-brand{display:block;padding:8px 4px;box-sizing:border-box;background:var(--warm-white);overflow:visible;position:relative;z-index:60;width:220px}
 .sidebar-brand img{width:90%;max-width:none;height:auto;display:block;margin:0 auto;pointer-events:none}
 .sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:14px 0;flex:1;overflow-y:auto;min-height:0}
@@ -101,7 +103,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-p
 .main{flex:1;min-width:0;padding:2rem;max-width:1200px}
 @media (max-width: 720px) {
   .app-shell{flex-direction:column}
-  .sidebar{width:100%;height:auto;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;position:sticky;top:0;border-right:none;border-bottom:1px solid var(--border)}
+  .app-shell::after{display:none}
+  .sidebar{width:100%;height:auto;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;position:sticky;top:0;border-bottom:1px solid var(--border)}
   .sidebar-brand{border-right:1px solid var(--border-light);padding:8px 14px;flex-shrink:0;min-height:0;overflow:hidden}
   .sidebar-brand img{width:auto;max-width:180px}
   .sidebar-nav{flex-direction:row;padding:0;flex:none}
