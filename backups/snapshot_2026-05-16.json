@@ -1,0 +1,4115 @@
+{
+  "taken_at": "",
+  "tables": {
+    "ingredients": [
+      {
+        "id": 5,
+        "name": "Milk",
+        "stock": 1,
+        "unit": "L",
+        "cost": 6.97
+      },
+      {
+        "id": 6,
+        "name": "Cocoa powder",
+        "stock": 225,
+        "unit": "g",
+        "cost": 0.044
+      },
+      {
+        "id": 9,
+        "name": "Cream cheese",
+        "stock": 0,
+        "unit": "kg",
+        "cost": 15.2
+      },
+      {
+        "id": 10,
+        "name": "Icing sugar",
+        "stock": 1,
+        "unit": "kg",
+        "cost": 3.5
+      },
+      {
+        "id": 14,
+        "name": "Clear Vanilla",
+        "stock": 100,
+        "unit": "ml",
+        "cost": 0.096
+      },
+      {
+        "id": 16,
+        "name": "Cashew nuts Baked",
+        "stock": 0.4,
+        "unit": "kg",
+        "cost": 30.299999999999997
+      },
+      {
+        "id": 17,
+        "name": "Raisings",
+        "stock": 0,
+        "unit": "kg",
+        "cost": 8.72
+      },
+      {
+        "id": 18,
+        "name": "soft gel color paste- leaf green",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.2340909090909091
+      },
+      {
+        "id": 19,
+        "name": "soft gel color paste- forest green",
+        "stock": 130,
+        "unit": "ml",
+        "cost": 0.09461538461538462
+      },
+      {
+        "id": 20,
+        "name": "SKY BLUE- AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 4.52
+      },
+      {
+        "id": 21,
+        "name": "SOFT PINK  - AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 22,
+        "name": "CHOCOLATE BROWN  - AMERICOLOR SOFTGEL COLOR PASTe",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.2636363636363636
+      },
+      {
+        "id": 23,
+        "name": "SUPER RED - AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.25681818181818183
+      },
+      {
+        "id": 24,
+        "name": "EGG YELLOW- AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 25,
+        "name": "ROYAL BLUE- AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 26,
+        "name": "LEMON YELLOW - AMERICOLOR  SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 27,
+        "name": "SUPER BLACK - AMERICOLOR SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 28,
+        "name": "MINT GREEN - AMERICOLOR -SOFTGEL COLOR PASTE",
+        "stock": 22,
+        "unit": "ml",
+        "cost": 0.20545
+      },
+      {
+        "id": 29,
+        "name": "CAKEBOARD 8\" ROUND GLOSSY GOLD 5PCS (#65372)",
+        "stock": 5,
+        "unit": "pcs",
+        "cost": 0.434
+      },
+      {
+        "id": 30,
+        "name": "CAKEBOARD 8\" SQUARE/GOLD 5PCS",
+        "stock": 5,
+        "unit": "pcs",
+        "cost": 0.43200000000000005
+      },
+      {
+        "id": 31,
+        "name": "SILICONE BAKING MAT 600X400MM redman",
+        "stock": 1,
+        "unit": "pcs",
+        "cost": 16.8
+      },
+      {
+        "id": 33,
+        "name": "LORANN OIL FLAVOR - RASPBERRY",
+        "stock": 3.6,
+        "unit": "ml",
+        "cost": 1
+      },
+      {
+        "id": 34,
+        "name": "WILTON CURLY RAINBOW CANDLE 3\" 11PC",
+        "stock": 11,
+        "unit": "pcs",
+        "cost": 0.35000000000000003
+      },
+      {
+        "id": 35,
+        "name": "SUGARFLAIR GUM POWDER TYLO EXTRA WHITE",
+        "stock": 50,
+        "unit": "g",
+        "cost": 0.184
+      },
+      {
+        "id": 36,
+        "name": "CREAM OF TARTAR 70G",
+        "stock": 70,
+        "unit": "g",
+        "cost": 0.04
+      },
+      {
+        "id": 37,
+        "name": "ROUND CAKE TIN ALUM ANODIZED 6\"X3\"",
+        "stock": 1,
+        "unit": "pcs",
+        "cost": 8.3
+      },
+      {
+        "id": 38,
+        "name": "Oatside Barista Blend Oat Milk 1L",
+        "stock": 1,
+        "unit": "L",
+        "cost": 6.15
+      },
+      {
+        "id": 39,
+        "name": "Grove Natural Avocado Oil 250ml",
+        "stock": 250,
+        "unit": "ml",
+        "cost": 0.0782
+      },
+      {
+        "id": 40,
+        "name": "Farmers Union Greek Style Yoghurt - Natural",
+        "stock": 1,
+        "unit": "kg",
+        "cost": 9.6
+      },
+      {
+        "id": 43,
+        "name": "WHIPPING (NON-DAIRY",
+        "stock": 1.1,
+        "unit": "kg",
+        "cost": 5.818181818181818
+      },
+      {
+        "id": 45,
+        "name": "Galbani Cheese - Mascarpone",
+        "stock": 250,
+        "unit": "g",
+        "cost": 0.047799999999999995
+      },
+      {
+        "id": 46,
+        "name": "CAKEBOARD 10\" ROUND GLOSSY GOLD 5PCS (#65374)",
+        "stock": 5,
+        "unit": "pcs",
+        "cost": 0.76
+      },
+      {
+        "id": 47,
+        "name": "CAKEBOARD 10\" SQUARE/GOLD 5PCS (#56350)",
+        "stock": 5,
+        "unit": "pcs",
+        "cost": 0.77
+      },
+      {
+        "id": 48,
+        "name": "CAKE BOARD 12\" SQUARE GOLD 5PCS (#57064)",
+        "stock": 5,
+        "unit": "pcs",
+        "cost": 1.16
+      },
+      {
+        "id": 49,
+        "name": "SOFT GOLD PEARL POWDER COL1001AF 25G",
+        "stock": 25,
+        "unit": "g",
+        "cost": 0.8320000000000001
+      },
+      {
+        "id": 50,
+        "name": "White Gum Paste",
+        "stock": 1,
+        "unit": "kg",
+        "cost": 17.9
+      },
+      {
+        "id": 51,
+        "name": "McVities Digestives Biscuits",
+        "stock": 0,
+        "unit": "g",
+        "cost": 0.0075
+      },
+      {
+        "id": 52,
+        "name": "Lemon",
+        "stock": 0,
+        "unit": "pcs",
+        "cost": 1
+      },
+      {
+        "id": 53,
+        "name": "Bulla Sour Cream - Original",
+        "stock": 200,
+        "unit": "ml",
+        "cost": 0.02475
+      },
+      {
+        "id": 12,
+        "name": "Self Raising Flour",
+        "stock": 0.75,
+        "unit": "kg",
+        "cost": 3.65
+      },
+      {
+        "id": 41,
+        "name": "SIS Caster Suger- extra fine",
+        "stock": 0.501,
+        "unit": "kg",
+        "cost": 3.5
+      },
+      {
+        "id": 42,
+        "name": "UHT WHIPPING CREAM DAIRY",
+        "stock": 0.9,
+        "unit": "L",
+        "cost": 11.16
+      },
+      {
+        "id": 32,
+        "name": "CALLEBAUT- WHITE CHOCOLATE COUVERTURE 28%",
+        "stock": 0.6,
+        "unit": "kg",
+        "cost": 35
+      },
+      {
+        "id": 44,
+        "name": "WHITE ROLLED FONDANT VANILLA 1KG",
+        "stock": 0.8,
+        "unit": "kg",
+        "cost": 11.84
+      },
+      {
+        "id": 1,
+        "name": "All-purpose flour",
+        "stock": -0.05,
+        "unit": "kg",
+        "cost": 2.85
+      },
+      {
+        "id": 3,
+        "name": "Sugar",
+        "stock": -0.2,
+        "unit": "kg",
+        "cost": 2.35
+      },
+      {
+        "id": 8,
+        "name": "Baking powder",
+        "stock": 555,
+        "unit": "g",
+        "cost": 0.0044666666666666665
+      },
+      {
+        "id": 2,
+        "name": "Butter",
+        "stock": -783.25,
+        "unit": "g",
+        "cost": 0.025110132158590308
+      },
+      {
+        "id": 11,
+        "name": "Dates UAE",
+        "stock": -0.5,
+        "unit": "kg",
+        "cost": 39.95
+      },
+      {
+        "id": 4,
+        "name": "Eggs",
+        "stock": -13,
+        "unit": "pcs",
+        "cost": 0.45499999999999996
+      },
+      {
+        "id": 7,
+        "name": "MADAGASCAR VANILLA EXTRACT 8OZ",
+        "stock": 149.9,
+        "unit": "ml",
+        "cost": 0.2453389831
+      },
+      {
+        "id": 15,
+        "name": "Almond essence",
+        "stock": 45,
+        "unit": "ml",
+        "cost": 0.127
+      },
+      {
+        "id": 13,
+        "name": "Cashewnuts (raw)",
+        "stock": -0.45,
+        "unit": "kg",
+        "cost": 16.4
+      }
+    ],
+    "price_history": [
+      {
+        "id": 1,
+        "ing_id": 1,
+        "date": "2026-05-07",
+        "cost": 2.85
+      },
+      {
+        "id": 2,
+        "ing_id": 2,
+        "date": "2026-05-07",
+        "cost": 0.0116
+      },
+      {
+        "id": 3,
+        "ing_id": 2,
+        "date": "2026-05-07",
+        "cost": 0.025110132158590308
+      },
+      {
+        "id": 4,
+        "ing_id": 3,
+        "date": "2026-05-07",
+        "cost": 2.35
+      },
+      {
+        "id": 5,
+        "ing_id": 4,
+        "date": "2026-05-07",
+        "cost": 0.465
+      },
+      {
+        "id": 6,
+        "ing_id": 4,
+        "date": "2026-05-07",
+        "cost": 0.45
+      },
+      {
+        "id": 7,
+        "ing_id": 4,
+        "date": "2026-05-07",
+        "cost": 0.45499999999999996
+      },
+      {
+        "id": 8,
+        "ing_id": 5,
+        "date": "2026-05-07",
+        "cost": 6.97
+      },
+      {
+        "id": 9,
+        "ing_id": 6,
+        "date": "2026-05-07",
+        "cost": 0.044
+      },
+      {
+        "id": 10,
+        "ing_id": 7,
+        "date": "2026-05-07",
+        "cost": 0.21
+      },
+      {
+        "id": 11,
+        "ing_id": 7,
+        "date": "2026-05-07",
+        "cost": 0.211864406779661
+      },
+      {
+        "id": 12,
+        "ing_id": 7,
+        "date": "2026-05-09",
+        "cost": 57.9
+      },
+      {
+        "id": 13,
+        "ing_id": 7,
+        "date": "2026-05-09",
+        "cost": 0.2453389831
+      },
+      {
+        "id": 14,
+        "ing_id": 8,
+        "date": "2026-05-07",
+        "cost": 0.0067
+      },
+      {
+        "id": 15,
+        "ing_id": 8,
+        "date": "2026-05-07",
+        "cost": 0.0044666666666666665
+      },
+      {
+        "id": 16,
+        "ing_id": 9,
+        "date": "2026-05-07",
+        "cost": 15.2
+      },
+      {
+        "id": 17,
+        "ing_id": 10,
+        "date": "2026-05-07",
+        "cost": 3.5
+      },
+      {
+        "id": 18,
+        "ing_id": 11,
+        "date": "2026-05-07",
+        "cost": 39.95
+      },
+      {
+        "id": 19,
+        "ing_id": 12,
+        "date": "2026-05-07",
+        "cost": 3.65
+      },
+      {
+        "id": 20,
+        "ing_id": 13,
+        "date": "2026-05-07",
+        "cost": 0.0303
+      },
+      {
+        "id": 21,
+        "ing_id": 13,
+        "date": "2026-05-07",
+        "cost": 16.4
+      },
+      {
+        "id": 22,
+        "ing_id": 14,
+        "date": "2026-05-07",
+        "cost": 0.098
+      },
+      {
+        "id": 23,
+        "ing_id": 14,
+        "date": "2026-05-07",
+        "cost": 0.096
+      },
+      {
+        "id": 24,
+        "ing_id": 15,
+        "date": "2026-05-07",
+        "cost": 0.127
+      },
+      {
+        "id": 25,
+        "ing_id": 16,
+        "date": "2026-05-07",
+        "cost": 5
+      },
+      {
+        "id": 26,
+        "ing_id": 16,
+        "date": "2026-05-07",
+        "cost": 12
+      },
+      {
+        "id": 27,
+        "ing_id": 16,
+        "date": "2026-05-07",
+        "cost": 30.299999999999997
+      },
+      {
+        "id": 28,
+        "ing_id": 17,
+        "date": "2026-05-08",
+        "cost": 8.72
+      },
+      {
+        "id": 29,
+        "ing_id": 18,
+        "date": "2026-05-08",
+        "cost": 0.2340909090909091
+      },
+      {
+        "id": 30,
+        "ing_id": 19,
+        "date": "2026-05-08",
+        "cost": 0.09461538461538462
+      },
+      {
+        "id": 31,
+        "ing_id": 20,
+        "date": "2026-05-08",
+        "cost": 0.25681818181818183
+      },
+      {
+        "id": 32,
+        "ing_id": 20,
+        "date": "2026-05-08",
+        "cost": 4.52
+      },
+      {
+        "id": 33,
+        "ing_id": 21,
+        "date": "2026-05-08",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 34,
+        "ing_id": 22,
+        "date": "2026-05-08",
+        "cost": 0.2636363636363636
+      },
+      {
+        "id": 35,
+        "ing_id": 23,
+        "date": "2026-05-08",
+        "cost": 0.25681818181818183
+      },
+      {
+        "id": 36,
+        "ing_id": 24,
+        "date": "2026-05-08",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 37,
+        "ing_id": 25,
+        "date": "2026-05-08",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 38,
+        "ing_id": 26,
+        "date": "2026-05-08",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 39,
+        "ing_id": 27,
+        "date": "2026-05-08",
+        "cost": 0.20545454545454545
+      },
+      {
+        "id": 40,
+        "ing_id": 28,
+        "date": "2026-05-08",
+        "cost": 4.52
+      },
+      {
+        "id": 41,
+        "ing_id": 28,
+        "date": "2026-05-09",
+        "cost": 0.20545
+      },
+      {
+        "id": 42,
+        "ing_id": 29,
+        "date": "2026-05-08",
+        "cost": 0.434
+      },
+      {
+        "id": 43,
+        "ing_id": 30,
+        "date": "2026-05-08",
+        "cost": 0.43200000000000005
+      },
+      {
+        "id": 44,
+        "ing_id": 31,
+        "date": "2026-05-08",
+        "cost": 16.8
+      },
+      {
+        "id": 45,
+        "ing_id": 32,
+        "date": "2026-05-08",
+        "cost": 35.01
+      },
+      {
+        "id": 46,
+        "ing_id": 32,
+        "date": "2026-05-08",
+        "cost": 35
+      },
+      {
+        "id": 47,
+        "ing_id": 33,
+        "date": "2026-05-08",
+        "cost": 1
+      },
+      {
+        "id": 48,
+        "ing_id": 34,
+        "date": "2026-05-08",
+        "cost": 0.35000000000000003
+      },
+      {
+        "id": 49,
+        "ing_id": 35,
+        "date": "2026-05-08",
+        "cost": 0.184
+      },
+      {
+        "id": 50,
+        "ing_id": 36,
+        "date": "2026-05-08",
+        "cost": 0.04
+      },
+      {
+        "id": 51,
+        "ing_id": 37,
+        "date": "2026-05-08",
+        "cost": 8.3
+      },
+      {
+        "id": 52,
+        "ing_id": 38,
+        "date": "2026-05-08",
+        "cost": 6.15
+      },
+      {
+        "id": 53,
+        "ing_id": 39,
+        "date": "2026-05-08",
+        "cost": 0.0782
+      },
+      {
+        "id": 54,
+        "ing_id": 40,
+        "date": "2026-05-08",
+        "cost": 9.6
+      },
+      {
+        "id": 55,
+        "ing_id": 41,
+        "date": "2026-05-08",
+        "cost": 3.5
+      },
+      {
+        "id": 56,
+        "ing_id": 42,
+        "date": "2026-05-08",
+        "cost": 11.16
+      },
+      {
+        "id": 57,
+        "ing_id": 43,
+        "date": "2026-05-08",
+        "cost": 5.818181818181818
+      },
+      {
+        "id": 58,
+        "ing_id": 44,
+        "date": "2026-05-08",
+        "cost": 11.84
+      },
+      {
+        "id": 59,
+        "ing_id": 45,
+        "date": "2026-05-08",
+        "cost": 0.047799999999999995
+      },
+      {
+        "id": 60,
+        "ing_id": 46,
+        "date": "2026-05-09",
+        "cost": 0.76
+      },
+      {
+        "id": 61,
+        "ing_id": 47,
+        "date": "2026-05-09",
+        "cost": 0.77
+      },
+      {
+        "id": 62,
+        "ing_id": 48,
+        "date": "2026-05-09",
+        "cost": 1.16
+      },
+      {
+        "id": 63,
+        "ing_id": 49,
+        "date": "2026-05-09",
+        "cost": 0.8320000000000001
+      },
+      {
+        "id": 64,
+        "ing_id": 50,
+        "date": "2026-05-09",
+        "cost": 17.9
+      },
+      {
+        "id": 65,
+        "ing_id": 51,
+        "date": "2026-05-09",
+        "cost": 0.0075
+      },
+      {
+        "id": 66,
+        "ing_id": 52,
+        "date": "2026-05-09",
+        "cost": 1
+      },
+      {
+        "id": 67,
+        "ing_id": 53,
+        "date": "2026-05-09",
+        "cost": 0.02475
+      }
+    ],
+    "recipes": [
+      {
+        "id": 4,
+        "name": "Vanila Cake 2 layer,with Butter Icing & filing",
+        "yield": "8 inch",
+        "suggested_sell_price": 68,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 2,
+        "name": "Ganache White Cake 3 Layer, 1 Tire basic with fondant Roses",
+        "yield": "6\"D x 5\"H",
+        "suggested_sell_price": 70,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 1,
+        "name": "Date and Nut cake small (850g)",
+        "yield": "8 inch (850g)",
+        "suggested_sell_price": 55,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 3,
+        "name": "Date and Nut cake L (1.75kg)",
+        "yield": "11 inch (1.75KG)",
+        "suggested_sell_price": 75,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 6,
+        "name": "Cheese Cake 6-Inch , optinal: friuts or Jam topping",
+        "yield": "6 inch (1kg)",
+        "suggested_sell_price": 50,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 5,
+        "name": "Cheese Cake, optinal: friuts or Jam topping",
+        "yield": "9 inch (2kg)",
+        "suggested_sell_price": 70,
+        "default_labour": 20,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 7,
+        "name": "Fondent Cake 2 layer, with Butter filing",
+        "yield": "6\" D x 5\" H",
+        "suggested_sell_price": 68,
+        "default_labour": 60,
+        "default_electricity": 5,
+        "default_packing_per_unit": 2
+      },
+      {
+        "id": 8,
+        "name": "3D figer",
+        "yield": "2\"x3\"",
+        "suggested_sell_price": 28,
+        "default_labour": 20,
+        "default_electricity": 1,
+        "default_packing_per_unit": 0
+      },
+      {
+        "id": 9,
+        "name": "Additinal 3D figer",
+        "yield": "2\"x3\"",
+        "suggested_sell_price": 22,
+        "default_labour": 15,
+        "default_electricity": 1,
+        "default_packing_per_unit": 0
+      }
+    ],
+    "recipe_ingredients": [
+      {
+        "id": 205,
+        "recipe_id": 6,
+        "ing_id": 41,
+        "qty": 0.15,
+        "unit": "kg"
+      },
+      {
+        "id": 206,
+        "recipe_id": 6,
+        "ing_id": 7,
+        "qty": 5,
+        "unit": "ml"
+      },
+      {
+        "id": 207,
+        "recipe_id": 6,
+        "ing_id": 9,
+        "qty": 0.6,
+        "unit": "kg"
+      },
+      {
+        "id": 208,
+        "recipe_id": 6,
+        "ing_id": 4,
+        "qty": 3,
+        "unit": "pcs"
+      },
+      {
+        "id": 138,
+        "recipe_id": 4,
+        "ing_id": 12,
+        "qty": 0.2,
+        "unit": "kg"
+      },
+      {
+        "id": 139,
+        "recipe_id": 4,
+        "ing_id": 2,
+        "qty": 200,
+        "unit": "g"
+      },
+      {
+        "id": 140,
+        "recipe_id": 4,
+        "ing_id": 4,
+        "qty": 4,
+        "unit": "pcs"
+      },
+      {
+        "id": 141,
+        "recipe_id": 4,
+        "ing_id": 41,
+        "qty": 0.2,
+        "unit": "kg"
+      },
+      {
+        "id": 142,
+        "recipe_id": 4,
+        "ing_id": 10,
+        "qty": 0.4,
+        "unit": "kg"
+      },
+      {
+        "id": 143,
+        "recipe_id": 4,
+        "ing_id": 7,
+        "qty": 10,
+        "unit": "ml"
+      },
+      {
+        "id": 144,
+        "recipe_id": 4,
+        "ing_id": 45,
+        "qty": 50,
+        "unit": "g"
+      },
+      {
+        "id": 145,
+        "recipe_id": 4,
+        "ing_id": 30,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 209,
+        "recipe_id": 6,
+        "ing_id": 1,
+        "qty": 0.02,
+        "unit": "kg"
+      },
+      {
+        "id": 210,
+        "recipe_id": 6,
+        "ing_id": 51,
+        "qty": 150,
+        "unit": "g"
+      },
+      {
+        "id": 211,
+        "recipe_id": 6,
+        "ing_id": 2,
+        "qty": 60,
+        "unit": "g"
+      },
+      {
+        "id": 212,
+        "recipe_id": 6,
+        "ing_id": 52,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 213,
+        "recipe_id": 6,
+        "ing_id": 53,
+        "qty": 80,
+        "unit": "ml"
+      },
+      {
+        "id": 214,
+        "recipe_id": 6,
+        "ing_id": 29,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 215,
+        "recipe_id": 5,
+        "ing_id": 3,
+        "qty": 0.25,
+        "unit": "kg"
+      },
+      {
+        "id": 216,
+        "recipe_id": 5,
+        "ing_id": 7,
+        "qty": 10,
+        "unit": "ml"
+      },
+      {
+        "id": 146,
+        "recipe_id": 2,
+        "ing_id": 12,
+        "qty": 0.25,
+        "unit": "kg"
+      },
+      {
+        "id": 147,
+        "recipe_id": 2,
+        "ing_id": 2,
+        "qty": 250,
+        "unit": "g"
+      },
+      {
+        "id": 148,
+        "recipe_id": 2,
+        "ing_id": 41,
+        "qty": 0.249,
+        "unit": "kg"
+      },
+      {
+        "id": 149,
+        "recipe_id": 2,
+        "ing_id": 7,
+        "qty": 0.1,
+        "unit": "ml"
+      },
+      {
+        "id": 150,
+        "recipe_id": 2,
+        "ing_id": 4,
+        "qty": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": 151,
+        "recipe_id": 2,
+        "ing_id": 42,
+        "qty": 0.05,
+        "unit": "L"
+      },
+      {
+        "id": 152,
+        "recipe_id": 2,
+        "ing_id": 32,
+        "qty": 0.5,
+        "unit": "kg"
+      },
+      {
+        "id": 153,
+        "recipe_id": 2,
+        "ing_id": 44,
+        "qty": 0.1,
+        "unit": "kg"
+      },
+      {
+        "id": 154,
+        "recipe_id": 2,
+        "ing_id": 29,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 155,
+        "recipe_id": 1,
+        "ing_id": 1,
+        "qty": 0.155,
+        "unit": "kg"
+      },
+      {
+        "id": 156,
+        "recipe_id": 1,
+        "ing_id": 3,
+        "qty": 0.2,
+        "unit": "kg"
+      },
+      {
+        "id": 157,
+        "recipe_id": 1,
+        "ing_id": 8,
+        "qty": 8,
+        "unit": "g"
+      },
+      {
+        "id": 158,
+        "recipe_id": 1,
+        "ing_id": 2,
+        "qty": 124.999,
+        "unit": "g"
+      },
+      {
+        "id": 159,
+        "recipe_id": 1,
+        "ing_id": 11,
+        "qty": 0.25,
+        "unit": "kg"
+      },
+      {
+        "id": 160,
+        "recipe_id": 1,
+        "ing_id": 4,
+        "qty": 3,
+        "unit": "pcs"
+      },
+      {
+        "id": 161,
+        "recipe_id": 1,
+        "ing_id": 7,
+        "qty": 5,
+        "unit": "ml"
+      },
+      {
+        "id": 162,
+        "recipe_id": 1,
+        "ing_id": 15,
+        "qty": 2.5,
+        "unit": "ml"
+      },
+      {
+        "id": 163,
+        "recipe_id": 1,
+        "ing_id": 16,
+        "qty": 0.1,
+        "unit": "kg"
+      },
+      {
+        "id": 217,
+        "recipe_id": 5,
+        "ing_id": 9,
+        "qty": 1,
+        "unit": "kg"
+      },
+      {
+        "id": 218,
+        "recipe_id": 5,
+        "ing_id": 4,
+        "qty": 4,
+        "unit": "pcs"
+      },
+      {
+        "id": 219,
+        "recipe_id": 5,
+        "ing_id": 1,
+        "qty": 0.45,
+        "unit": "kg"
+      },
+      {
+        "id": 220,
+        "recipe_id": 5,
+        "ing_id": 51,
+        "qty": 180,
+        "unit": "g"
+      },
+      {
+        "id": 221,
+        "recipe_id": 5,
+        "ing_id": 2,
+        "qty": 80,
+        "unit": "g"
+      },
+      {
+        "id": 222,
+        "recipe_id": 5,
+        "ing_id": 52,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 223,
+        "recipe_id": 5,
+        "ing_id": 53,
+        "qty": 50,
+        "unit": "ml"
+      },
+      {
+        "id": 224,
+        "recipe_id": 5,
+        "ing_id": 46,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 225,
+        "recipe_id": 7,
+        "ing_id": 12,
+        "qty": 0.2,
+        "unit": "kg"
+      },
+      {
+        "id": 226,
+        "recipe_id": 7,
+        "ing_id": 2,
+        "qty": 200,
+        "unit": "g"
+      },
+      {
+        "id": 227,
+        "recipe_id": 7,
+        "ing_id": 4,
+        "qty": 4,
+        "unit": "pcs"
+      },
+      {
+        "id": 228,
+        "recipe_id": 7,
+        "ing_id": 41,
+        "qty": 0.2,
+        "unit": "kg"
+      },
+      {
+        "id": 229,
+        "recipe_id": 7,
+        "ing_id": 10,
+        "qty": 0.4,
+        "unit": "kg"
+      },
+      {
+        "id": 230,
+        "recipe_id": 7,
+        "ing_id": 7,
+        "qty": 10,
+        "unit": "ml"
+      },
+      {
+        "id": 231,
+        "recipe_id": 7,
+        "ing_id": 45,
+        "qty": 50,
+        "unit": "g"
+      },
+      {
+        "id": 232,
+        "recipe_id": 7,
+        "ing_id": 30,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 233,
+        "recipe_id": 7,
+        "ing_id": 44,
+        "qty": 1,
+        "unit": "kg"
+      },
+      {
+        "id": 234,
+        "recipe_id": 7,
+        "ing_id": 20,
+        "qty": 1,
+        "unit": "ml"
+      },
+      {
+        "id": 164,
+        "recipe_id": 1,
+        "ing_id": 30,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 165,
+        "recipe_id": 3,
+        "ing_id": 1,
+        "qty": 0.35,
+        "unit": "kg"
+      },
+      {
+        "id": 166,
+        "recipe_id": 3,
+        "ing_id": 3,
+        "qty": 0.4,
+        "unit": "kg"
+      },
+      {
+        "id": 167,
+        "recipe_id": 3,
+        "ing_id": 8,
+        "qty": 15,
+        "unit": "g"
+      },
+      {
+        "id": 168,
+        "recipe_id": 3,
+        "ing_id": 2,
+        "qty": 260,
+        "unit": "g"
+      },
+      {
+        "id": 169,
+        "recipe_id": 3,
+        "ing_id": 11,
+        "qty": 0.5,
+        "unit": "kg"
+      },
+      {
+        "id": 170,
+        "recipe_id": 3,
+        "ing_id": 4,
+        "qty": 6,
+        "unit": "pcs"
+      },
+      {
+        "id": 171,
+        "recipe_id": 3,
+        "ing_id": 7,
+        "qty": 10,
+        "unit": "ml"
+      },
+      {
+        "id": 172,
+        "recipe_id": 3,
+        "ing_id": 15,
+        "qty": 5,
+        "unit": "ml"
+      },
+      {
+        "id": 173,
+        "recipe_id": 3,
+        "ing_id": 13,
+        "qty": 0.15,
+        "unit": "kg"
+      },
+      {
+        "id": 174,
+        "recipe_id": 3,
+        "ing_id": 47,
+        "qty": 1,
+        "unit": "pcs"
+      },
+      {
+        "id": 244,
+        "recipe_id": 8,
+        "ing_id": 44,
+        "qty": 0.5,
+        "unit": "kg"
+      },
+      {
+        "id": 245,
+        "recipe_id": 8,
+        "ing_id": 50,
+        "qty": 0.01,
+        "unit": "kg"
+      },
+      {
+        "id": 246,
+        "recipe_id": 8,
+        "ing_id": 21,
+        "qty": 0.01,
+        "unit": "ml"
+      },
+      {
+        "id": 247,
+        "recipe_id": 9,
+        "ing_id": 44,
+        "qty": 0.5,
+        "unit": "kg"
+      },
+      {
+        "id": 248,
+        "recipe_id": 9,
+        "ing_id": 50,
+        "qty": 0.01,
+        "unit": "kg"
+      },
+      {
+        "id": 249,
+        "recipe_id": 9,
+        "ing_id": 21,
+        "qty": 0.01,
+        "unit": "ml"
+      }
+    ],
+    "orders": [
+      {
+        "id": 7,
+        "customer": "Buddhika Wimanlasena",
+        "customer_phone": "",
+        "customer_email": "",
+        "customer_address": "East coast",
+        "recipe_id": 2,
+        "qty": 1,
+        "note": "Birthday gift for Swewandi",
+        "due_date": "2026-05-15",
+        "status": "done",
+        "sell_price_per_unit": 0,
+        "labour": 20,
+        "electricity": 5,
+        "packing_per_unit": 2,
+        "transport_cost": 0,
+        "ingredient_cost": 19.10306693795758,
+        "cake_cost": 46.10306693795758,
+        "ingredient_snapshot": [
+          {
+            "name": "Self Raising Flour",
+            "unit": "kg",
+            "ingId": 12,
+            "lineCost": 0.9125,
+            "qtyEntered": 0.25,
+            "costPerUnit": 3.65,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.25,
+            "conversionError": false
+          },
+          {
+            "name": "Butter",
+            "unit": "g",
+            "ingId": 2,
+            "lineCost": 6.277533039647577,
+            "qtyEntered": 250,
+            "costPerUnit": 0.025110132158590308,
+            "storageUnit": "g",
+            "qtyInStorage": 250,
+            "conversionError": false
+          },
+          {
+            "name": "SIS Caster Suger- extra fine",
+            "unit": "kg",
+            "ingId": 41,
+            "lineCost": 0.8714999999999999,
+            "qtyEntered": 0.249,
+            "costPerUnit": 3.5,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.249,
+            "conversionError": false
+          },
+          {
+            "name": "MADAGASCAR VANILLA EXTRACT 8OZ",
+            "unit": "ml",
+            "ingId": 7,
+            "lineCost": 0.02453389831,
+            "qtyEntered": 0.1,
+            "costPerUnit": 0.2453389831,
+            "storageUnit": "ml",
+            "qtyInStorage": 0.1,
+            "conversionError": false
+          },
+          {
+            "name": "Eggs",
+            "unit": "pcs",
+            "ingId": 4,
+            "lineCost": 2.275,
+            "qtyEntered": 5,
+            "costPerUnit": 0.45499999999999996,
+            "storageUnit": "pcs",
+            "qtyInStorage": 5,
+            "conversionError": false
+          },
+          {
+            "name": "UHT WHIPPING CREAM DAIRY",
+            "unit": "L",
+            "ingId": 42,
+            "lineCost": 0.558,
+            "qtyEntered": 0.05,
+            "costPerUnit": 11.16,
+            "storageUnit": "L",
+            "qtyInStorage": 0.05,
+            "conversionError": false
+          },
+          {
+            "name": "CALLEBAUT- WHITE CHOCOLATE COUVERTURE 28%",
+            "unit": "kg",
+            "ingId": 32,
+            "lineCost": 7,
+            "qtyEntered": 0.2,
+            "costPerUnit": 35,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.2,
+            "conversionError": false
+          },
+          {
+            "name": "WHITE ROLLED FONDANT VANILLA 1KG",
+            "unit": "kg",
+            "ingId": 44,
+            "lineCost": 1.184,
+            "qtyEntered": 0.1,
+            "costPerUnit": 11.84,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.1,
+            "conversionError": false
+          }
+        ],
+        "completed_date": "2026-05-15",
+        "created_at": "2026-05-15T13:52:01.174844+00:00"
+      },
+      {
+        "id": 10,
+        "customer": "Nidhani Jayasinghe",
+        "customer_phone": "",
+        "customer_email": "",
+        "customer_address": "",
+        "recipe_id": 1,
+        "qty": 1,
+        "note": "",
+        "due_date": "2026-05-15",
+        "status": "pending",
+        "sell_price_per_unit": 55,
+        "labour": 20,
+        "electricity": 5,
+        "packing_per_unit": 2,
+        "transport_cost": 0,
+        "ingredient_cost": 20.012919658524964,
+        "cake_cost": 47.012919658524964,
+        "ingredient_snapshot": [
+          {
+            "name": "All-purpose flour",
+            "unit": "kg",
+            "ingId": 1,
+            "lineCost": 0.44175000000000003,
+            "qtyEntered": 0.155,
+            "costPerUnit": 2.85,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.155,
+            "conversionError": false
+          },
+          {
+            "name": "Sugar",
+            "unit": "kg",
+            "ingId": 3,
+            "lineCost": 0.47000000000000003,
+            "qtyEntered": 0.2,
+            "costPerUnit": 2.35,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.2,
+            "conversionError": false
+          },
+          {
+            "name": "Baking powder",
+            "unit": "g",
+            "ingId": 8,
+            "lineCost": 0.03573333333333333,
+            "qtyEntered": 8,
+            "costPerUnit": 0.0044666666666666665,
+            "storageUnit": "g",
+            "qtyInStorage": 8,
+            "conversionError": false
+          },
+          {
+            "name": "Butter",
+            "unit": "g",
+            "ingId": 2,
+            "lineCost": 3.13874140969163,
+            "qtyEntered": 124.999,
+            "costPerUnit": 0.025110132158590308,
+            "storageUnit": "g",
+            "qtyInStorage": 124.999,
+            "conversionError": false
+          },
+          {
+            "name": "Dates UAE",
+            "unit": "kg",
+            "ingId": 11,
+            "lineCost": 9.9875,
+            "qtyEntered": 0.25,
+            "costPerUnit": 39.95,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.25,
+            "conversionError": false
+          },
+          {
+            "name": "Eggs",
+            "unit": "pcs",
+            "ingId": 4,
+            "lineCost": 1.3649999999999998,
+            "qtyEntered": 3,
+            "costPerUnit": 0.45499999999999996,
+            "storageUnit": "pcs",
+            "qtyInStorage": 3,
+            "conversionError": false
+          },
+          {
+            "name": "MADAGASCAR VANILLA EXTRACT 8OZ",
+            "unit": "ml",
+            "ingId": 7,
+            "lineCost": 1.2266949155,
+            "qtyEntered": 5,
+            "costPerUnit": 0.2453389831,
+            "storageUnit": "ml",
+            "qtyInStorage": 5,
+            "conversionError": false
+          },
+          {
+            "name": "Almond essence",
+            "unit": "ml",
+            "ingId": 15,
+            "lineCost": 0.3175,
+            "qtyEntered": 2.5,
+            "costPerUnit": 0.127,
+            "storageUnit": "ml",
+            "qtyInStorage": 2.5,
+            "conversionError": false
+          },
+          {
+            "name": "Cashew nuts Baked",
+            "unit": "kg",
+            "ingId": 16,
+            "lineCost": 3.03,
+            "qtyEntered": 0.1,
+            "costPerUnit": 30.299999999999997,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.1,
+            "conversionError": false
+          }
+        ],
+        "completed_date": null,
+        "created_at": "2026-05-15T13:57:12.349778+00:00"
+      },
+      {
+        "id": 16,
+        "customer": "Sewandi Wimalasena",
+        "customer_phone": "",
+        "customer_email": "",
+        "customer_address": "East coast",
+        "recipe_id": 3,
+        "qty": 1,
+        "note": "Bhante Dhana",
+        "due_date": "2026-05-15",
+        "status": "done",
+        "sell_price_per_unit": 1,
+        "labour": 0,
+        "electricity": 5,
+        "packing_per_unit": 0,
+        "transport_cost": 0,
+        "ingredient_cost": 36.78652419223348,
+        "cake_cost": 41.78652419223348,
+        "ingredient_snapshot": [
+          {
+            "name": "All-purpose flour",
+            "unit": "kg",
+            "ingId": 1,
+            "lineCost": 0.9974999999999999,
+            "qtyEntered": 0.35,
+            "costPerUnit": 2.85,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.35,
+            "conversionError": false
+          },
+          {
+            "name": "Sugar",
+            "unit": "kg",
+            "ingId": 3,
+            "lineCost": 0.9400000000000001,
+            "qtyEntered": 0.4,
+            "costPerUnit": 2.35,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.4,
+            "conversionError": false
+          },
+          {
+            "name": "Baking powder",
+            "unit": "g",
+            "ingId": 8,
+            "lineCost": 0.067,
+            "qtyEntered": 15,
+            "costPerUnit": 0.0044666666666666665,
+            "storageUnit": "g",
+            "qtyInStorage": 15,
+            "conversionError": false
+          },
+          {
+            "name": "Butter",
+            "unit": "g",
+            "ingId": 2,
+            "lineCost": 6.52863436123348,
+            "qtyEntered": 260,
+            "costPerUnit": 0.025110132158590308,
+            "storageUnit": "g",
+            "qtyInStorage": 260,
+            "conversionError": false
+          },
+          {
+            "name": "Dates UAE",
+            "unit": "kg",
+            "ingId": 11,
+            "lineCost": 19.975,
+            "qtyEntered": 0.5,
+            "costPerUnit": 39.95,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.5,
+            "conversionError": false
+          },
+          {
+            "name": "Eggs",
+            "unit": "pcs",
+            "ingId": 4,
+            "lineCost": 2.7299999999999995,
+            "qtyEntered": 6,
+            "costPerUnit": 0.45499999999999996,
+            "storageUnit": "pcs",
+            "qtyInStorage": 6,
+            "conversionError": false
+          },
+          {
+            "name": "MADAGASCAR VANILLA EXTRACT 8OZ",
+            "unit": "ml",
+            "ingId": 7,
+            "lineCost": 2.453389831,
+            "qtyEntered": 10,
+            "costPerUnit": 0.2453389831,
+            "storageUnit": "ml",
+            "qtyInStorage": 10,
+            "conversionError": false
+          },
+          {
+            "name": "Almond essence",
+            "unit": "ml",
+            "ingId": 15,
+            "lineCost": 0.635,
+            "qtyEntered": 5,
+            "costPerUnit": 0.127,
+            "storageUnit": "ml",
+            "qtyInStorage": 5,
+            "conversionError": false
+          },
+          {
+            "name": "Cashewnuts (raw)",
+            "unit": "kg",
+            "ingId": 13,
+            "lineCost": 2.4599999999999995,
+            "qtyEntered": 0.15,
+            "costPerUnit": 16.4,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.15,
+            "conversionError": false
+          }
+        ],
+        "completed_date": "2026-05-15",
+        "created_at": "2026-05-15T14:11:45.690038+00:00"
+      },
+      {
+        "id": 18,
+        "customer": "Ven Sugatawansa",
+        "customer_phone": "",
+        "customer_email": "",
+        "customer_address": "",
+        "recipe_id": 5,
+        "qty": 1,
+        "note": "Basic",
+        "due_date": "2026-06-03",
+        "status": "pending",
+        "sell_price_per_unit": 1,
+        "labour": 0,
+        "electricity": 5,
+        "packing_per_unit": 2,
+        "transport_cost": 0,
+        "ingredient_cost": 27.699700403687228,
+        "cake_cost": 34.69970040368723,
+        "ingredient_snapshot": [
+          {
+            "name": "Sugar",
+            "unit": "kg",
+            "ingId": 3,
+            "lineCost": 0.5875,
+            "qtyEntered": 0.25,
+            "costPerUnit": 2.35,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.25,
+            "conversionError": false
+          },
+          {
+            "name": "MADAGASCAR VANILLA EXTRACT 8OZ",
+            "unit": "ml",
+            "ingId": 7,
+            "lineCost": 2.453389831,
+            "qtyEntered": 10,
+            "costPerUnit": 0.2453389831,
+            "storageUnit": "ml",
+            "qtyInStorage": 10,
+            "conversionError": false
+          },
+          {
+            "name": "Cream cheese",
+            "unit": "kg",
+            "ingId": 9,
+            "lineCost": 15.2,
+            "qtyEntered": 1,
+            "costPerUnit": 15.2,
+            "storageUnit": "kg",
+            "qtyInStorage": 1,
+            "conversionError": false
+          },
+          {
+            "name": "Eggs",
+            "unit": "pcs",
+            "ingId": 4,
+            "lineCost": 1.8199999999999998,
+            "qtyEntered": 4,
+            "costPerUnit": 0.45499999999999996,
+            "storageUnit": "pcs",
+            "qtyInStorage": 4,
+            "conversionError": false
+          },
+          {
+            "name": "All-purpose flour",
+            "unit": "kg",
+            "ingId": 1,
+            "lineCost": 1.2825,
+            "qtyEntered": 0.45,
+            "costPerUnit": 2.85,
+            "storageUnit": "kg",
+            "qtyInStorage": 0.45,
+            "conversionError": false
+          },
+          {
+            "name": "McVities Digestives Biscuits",
+            "unit": "g",
+            "ingId": 51,
+            "lineCost": 1.3499999999999999,
+            "qtyEntered": 180,
+            "costPerUnit": 0.0075,
+            "storageUnit": "g",
+            "qtyInStorage": 180,
+            "conversionError": false
+          },
+          {
+            "name": "Butter",
+            "unit": "g",
+            "ingId": 2,
+            "lineCost": 2.0088105726872247,
+            "qtyEntered": 80,
+            "costPerUnit": 0.025110132158590308,
+            "storageUnit": "g",
+            "qtyInStorage": 80,
+            "conversionError": false
+          },
+          {
+            "name": "Lemon",
+            "unit": "pcs",
+            "ingId": 52,
+            "lineCost": 1,
+            "qtyEntered": 1,
+            "costPerUnit": 1,
+            "storageUnit": "pcs",
+            "qtyInStorage": 1,
+            "conversionError": false
+          },
+          {
+            "name": "Bulla Sour Cream - Original",
+            "unit": "ml",
+            "ingId": 53,
+            "lineCost": 1.2375,
+            "qtyEntered": 50,
+            "costPerUnit": 0.02475,
+            "storageUnit": "ml",
+            "qtyInStorage": 50,
+            "conversionError": false
+          },
+          {
+            "name": "CAKEBOARD 10\" ROUND GLOSSY GOLD 5PCS (#65374)",
+            "unit": "pcs",
+            "ingId": 46,
+            "lineCost": 0.76,
+            "qtyEntered": 1,
+            "costPerUnit": 0.76,
+            "storageUnit": "pcs",
+            "qtyInStorage": 1,
+            "conversionError": false
+          }
+        ],
+        "completed_date": null,
+        "created_at": "2026-05-15T16:31:44.260875+00:00"
+      }
+    ],
+    "shopping_trips": [],
+    "shopping_items": [],
+    "activity_log": [
+      {
+        "id": 53,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "All-purpose flour — stock: 5 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:09:00+00:00"
+      },
+      {
+        "id": 54,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Butter — price: SGD 9.50 → SGD 10.50 — stock: 2 → 454 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:10:00+00:00"
+      },
+      {
+        "id": 55,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Icing sugar — price: SGD 2.20 → SGD 3.50 — stock: 2 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:10:00+00:00"
+      },
+      {
+        "id": 56,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Milk — price: SGD 2.20 → SGD 6.97 — stock: 3 → 1 L",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:11:00+00:00"
+      },
+      {
+        "id": 57,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — price: SGD 0.35 → SGD 4.65 — stock: 24 → 10 pcs",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:12:00+00:00"
+      },
+      {
+        "id": 58,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Sugar — price: SGD 1.80 → SGD 2.35 — stock: 3 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:14:00+00:00"
+      },
+      {
+        "id": 59,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cocoa powder — price: SGD 12.00 → SGD 9.95 — stock: 0.5 → 225 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:15:00+00:00"
+      },
+      {
+        "id": 60,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Vanilla extract — price: SGD 0.08 → SGD 50.00 — stock: 100 → 236 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:17:00+00:00"
+      },
+      {
+        "id": 61,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder — price: SGD 0.03 → SGD 3.35 — stock: 200 → 500 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:17:00+00:00"
+      },
+      {
+        "id": 62,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cream cheese — price: SGD 11.50 → SGD 15.20",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:18:00+00:00"
+      },
+      {
+        "id": 63,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Dates UAE — SGD 39.95/kg, stock: 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:19:00+00:00"
+      },
+      {
+        "id": 64,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Self Raising Flour — SGD 3.65/kg, stock: 2 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:22:00+00:00"
+      },
+      {
+        "id": 65,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Butter — price: SGD 10.50 → SGD 5.25",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:23:00+00:00"
+      },
+      {
+        "id": 66,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Icing sugar — stock: 1 → 2 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:24:00+00:00"
+      },
+      {
+        "id": 67,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "All-purpose flour — price: SGD 1.20 → SGD 2.85",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:25:00+00:00"
+      },
+      {
+        "id": 68,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Casunuts — SGD 0.00/g, stock: 400 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:26:00+00:00"
+      },
+      {
+        "id": 69,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:26:00+00:00"
+      },
+      {
+        "id": 70,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked — price: SGD 0.00 → SGD 12.12",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:27:00+00:00"
+      },
+      {
+        "id": 71,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Clear Vanilla — SGD 9.80/ml, stock: 100 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:29:00+00:00"
+      },
+      {
+        "id": 72,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Almnond essence — SGD 7.60/ml, stock: 60 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:30:00+00:00"
+      },
+      {
+        "id": 73,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Mei Lin Tan — 08 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:31:00+00:00"
+      },
+      {
+        "id": 74,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Priya Nair — 09 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:31:00+00:00"
+      },
+      {
+        "id": 75,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sarah Lim — 02 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:31:00+00:00"
+      },
+      {
+        "id": 76,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Hui Ting Wong — 12 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:31:00+00:00"
+      },
+      {
+        "id": 77,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Date and Nut cake — sell price SGD 80.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:35:00+00:00"
+      },
+      {
+        "id": 78,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — price: SGD 4.65 → SGD 0.47",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:36:00+00:00"
+      },
+      {
+        "id": 79,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Butter — price: SGD 5.25 → SGD 0.12",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:37:00+00:00"
+      },
+      {
+        "id": 80,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cocoa powder — price: SGD 9.95 → SGD 0.44",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:38:00+00:00"
+      },
+      {
+        "id": 81,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Cashew nuts Baked — SGD 2.00/kg, stock: 0.4 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T16:41:00+00:00"
+      },
+      {
+        "id": 82,
+        "type": "add",
+        "action": "Recovery test",
+        "detail": "Verifying API connectivity from automation",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T17:00:00+00:00"
+      },
+      {
+        "id": 83,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked — purchased 1 kg for SGD 12.00 (SGD 12.00/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:44:00+00:00"
+      },
+      {
+        "id": 84,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — purchased 10 pcs for SGD 4.50 (SGD 0.45/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:44:00+00:00"
+      },
+      {
+        "id": 85,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked — stock: 1.4 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:45:00+00:00"
+      },
+      {
+        "id": 86,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Butter — purchased 227 g for SGD 5.70 (SGD 0.03/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:46:00+00:00"
+      },
+      {
+        "id": 87,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Butter — stock: 681 → 227 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:47:00+00:00"
+      },
+      {
+        "id": 88,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — purchased 10 pcs for SGD 4.55 (SGD 0.45/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:48:00+00:00"
+      },
+      {
+        "id": 89,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Casunuts (raw) — purchased 1 kg for SGD 16.40 (SGD 16.40/kg) — unit: g → kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:49:00+00:00"
+      },
+      {
+        "id": 90,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Casunuts (raw) — stock: 401 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:49:00+00:00"
+      },
+      {
+        "id": 91,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked — purchased 0.4 kg for SGD 12.12 (SGD 30.30/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:50:00+00:00"
+      },
+      {
+        "id": 92,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashew nuts Baked — stock: 1.4 → 0.4 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:50:00+00:00"
+      },
+      {
+        "id": 93,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Clear Vanilla — purchased 100 ml for SGD 9.60 (SGD 0.10/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:51:00+00:00"
+      },
+      {
+        "id": 94,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Clear Vanilla — stock: 200 → 100 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:51:00+00:00"
+      },
+      {
+        "id": 95,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder — purchased 600 g for SGD 2.68 (SGD 0.00/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:52:00+00:00"
+      },
+      {
+        "id": 96,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder — stock: 1100 → 600 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:52:00+00:00"
+      },
+      {
+        "id": 97,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:53:00+00:00"
+      },
+      {
+        "id": 98,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder — purchased 600 g for SGD 2.68 (SGD 0.00/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:53:00+00:00"
+      },
+      {
+        "id": 99,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Baking powder — stock: 1200 → 600 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:53:00+00:00"
+      },
+      {
+        "id": 100,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Vanilla extract — purchased 236 ml for SGD 50.00 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:54:00+00:00"
+      },
+      {
+        "id": 101,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Vanilla extract — stock: 472 → 236 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:54:00+00:00"
+      },
+      {
+        "id": 102,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T19:55:00+00:00"
+      },
+      {
+        "id": 103,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Nidani — Date and Nut cake × 1, sell SGD 75.00, cost SGD 38.33",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T20:02:00+00:00"
+      },
+      {
+        "id": 104,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small — sell price SGD 55.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T20:04:00+00:00"
+      },
+      {
+        "id": 105,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Nidani 2 — Date and Nut cake small × 1, sell SGD 55.00, cost SGD 19.85",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T20:08:00+00:00"
+      },
+      {
+        "id": 106,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — stock: 30 → 20 pcs",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-08T20:09:00+00:00"
+      },
+      {
+        "id": 107,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Raisings — 1 kg for SGD 8.72 (SGD 8.72/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:13:00+00:00"
+      },
+      {
+        "id": 108,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Raisings — stock: 1 → 0 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:14:00+00:00"
+      },
+      {
+        "id": 109,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "soft gel color paste- leaf green — 22 ml for SGD 5.15 (SGD 0.23/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:28:00+00:00"
+      },
+      {
+        "id": 110,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "soft gel color paste- forest green — 130 ml for SGD 12.30 (SGD 0.09/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:30:00+00:00"
+      },
+      {
+        "id": 111,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTE-SKY BLUE — 22 ml for SGD 5.65 (SGD 0.26/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:35:00+00:00"
+      },
+      {
+        "id": 112,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTE- SOFT PINK — 22 ml for SGD 4.52 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:37:00+00:00"
+      },
+      {
+        "id": 113,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTe- CHOCOLATE BROWN — 22 ml for SGD 5.80 (SGD 0.26/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:39:00+00:00"
+      },
+      {
+        "id": 114,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PAST- SUPER RED — 22 ml for SGD 5.65 (SGD 0.26/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:41:00+00:00"
+      },
+      {
+        "id": 115,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTE- EGG YELLOW 0.75OZ free-gift-icon   $4.52 — 22 ml for SGD 4.52 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:43:00+00:00"
+      },
+      {
+        "id": 116,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTE- ROYAL BLUE — 22 ml for SGD 4.52 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:46:00+00:00"
+      },
+      {
+        "id": 117,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR  SOFTGEL COLOR PASTE- LEMON YELLOW — 22 ml for SGD 4.52 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:49:00+00:00"
+      },
+      {
+        "id": 118,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "AMERICOLOR (#61213)  SOFTGEL COLOR PASTE SUPER BLACK — 22 ml for SGD 4.52 (SGD 0.21/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:52:00+00:00"
+      },
+      {
+        "id": 119,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "AMERICOLOR SOFTGEL COLOR PASTE SUPER BLACK (was: AMERICOLOR (#61213)  SOFTGEL COLOR PASTE SUPER BLACK)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:52:00+00:00"
+      },
+      {
+        "id": 120,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "SKY BLUE- AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PASTE-SKY BLUE) — price: SGD 0.26 → SGD 4.52",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:55:00+00:00"
+      },
+      {
+        "id": 121,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "SOFT PINK  - AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PASTE- SOFT PINK)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:56:00+00:00"
+      },
+      {
+        "id": 122,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "CHOCOLATE BROWN  - AMERICOLOR SOFTGEL COLOR PASTe (was: AMERICOLOR SOFTGEL COLOR PASTe- CHOCOLATE BROWN)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:57:00+00:00"
+      },
+      {
+        "id": 123,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "SUPER RED - AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PAST- SUPER RED)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:57:00+00:00"
+      },
+      {
+        "id": 124,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "CHOCOLATE BROWN  - AMERICOLOR SOFTGEL COLOR PASTe",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:58:00+00:00"
+      },
+      {
+        "id": 125,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "EGG YELLOW AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PASTE- EGG YELLOW 0.75OZ free-gift-icon   $4.52)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:59:00+00:00"
+      },
+      {
+        "id": 126,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "EGG YELLOW- AMERICOLOR SOFTGEL COLOR PASTE (was: EGG YELLOW AMERICOLOR SOFTGEL COLOR PASTE)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T10:59:00+00:00"
+      },
+      {
+        "id": 127,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "ROYAL BLUE- AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PASTE- ROYAL BLUE)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:00:00+00:00"
+      },
+      {
+        "id": 128,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "LEMON YELLOW - AMERICOLOR  SOFTGEL COLOR PASTE (was: AMERICOLOR  SOFTGEL COLOR PASTE- LEMON YELLOW)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:00:00+00:00"
+      },
+      {
+        "id": 129,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "SUPER BLACK - AMERICOLOR SOFTGEL COLOR PASTE (was: AMERICOLOR SOFTGEL COLOR PASTE SUPER BLACK)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:01:00+00:00"
+      },
+      {
+        "id": 130,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "MINT GREEN - AMERICOLOR -SOFTGEL COLOR PASTE — 1 kg for SGD 4.52 (SGD 4.52/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:02:00+00:00"
+      },
+      {
+        "id": 131,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CAKEBOARD 8\" SQUARE/GOLD 5PCS   $2.16 $2.7 — 5 pcs for SGD 2.17 (SGD 0.43/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:05:00+00:00"
+      },
+      {
+        "id": 132,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CAKEBOARD 8\" SQUARE/GOLD 5PCS — 5 pcs for SGD 2.16 (SGD 0.43/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:06:00+00:00"
+      },
+      {
+        "id": 133,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "SILICONE BAKING MAT 600X400MM redman — 1 pcs for SGD 16.80 (SGD 16.80/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:15:00+00:00"
+      },
+      {
+        "id": 134,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "CAKEBOARD 8\" SQUARE/GOLD 5PCS (was: CAKEBOARD 8\" SQUARE/GOLD 5PCS   $2.16 $2.7)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:15:00+00:00"
+      },
+      {
+        "id": 135,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CALLEBAUT- WHITE CHOCOLATE COUVERTURE 28% — 1 kg for SGD 35.01 (SGD 35.01/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:18:00+00:00"
+      },
+      {
+        "id": 136,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "CALLEBAUT- WHITE CHOCOLATE COUVERTURE 28% — price: SGD 35.01 → SGD 35.00",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:18:00+00:00"
+      },
+      {
+        "id": 137,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "LORANN OIL FLAVOR - RASPBERRY — 3.6 ml for SGD 3.60 (SGD 1.00/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:22:00+00:00"
+      },
+      {
+        "id": 138,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "WILTON CURLY RAINBOW CANDLE 3\" 11PC — 11 pcs for SGD 3.85 (SGD 0.35/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:25:00+00:00"
+      },
+      {
+        "id": 139,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "SUGARFLAIR GUM POWDER TYLO EXTRA WHITE — 50 g for SGD 9.20 (SGD 0.18/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:29:00+00:00"
+      },
+      {
+        "id": 140,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CREAM OF TARTAR 70G — 70 g for SGD 2.80 (SGD 0.04/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:31:00+00:00"
+      },
+      {
+        "id": 141,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "ROUND CAKE TIN ALUM ANODIZED 6\"X3\" — 1 pcs for SGD 8.30 (SGD 8.30/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:35:00+00:00"
+      },
+      {
+        "id": 142,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "ROUND CAKE TIN ALUM ANODIZED 6\"X3\"",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:35:00+00:00"
+      },
+      {
+        "id": 143,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Oatside Barista Blend Oat Milk 1L — 1 L for SGD 6.15 (SGD 6.15/L)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:39:00+00:00"
+      },
+      {
+        "id": 144,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Grove Natural Avocado Oil 250ml — 250 ml for SGD 19.55 (SGD 0.08/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:41:00+00:00"
+      },
+      {
+        "id": 145,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Farmers Union Greek Style Yoghurt - Natural — 1 kg for SGD 9.60 (SGD 9.60/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T11:42:00+00:00"
+      },
+      {
+        "id": 146,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "normal — sell price SGD 50.00, 2 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T13:27:00+00:00"
+      },
+      {
+        "id": 147,
+        "type": "delete",
+        "action": "Recipe deleted",
+        "detail": "normal",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T13:27:00+00:00"
+      },
+      {
+        "id": 148,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "SIS Caster Suger- extra fine — 1 kg for SGD 3.50 (SGD 3.50/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T13:33:00+00:00"
+      },
+      {
+        "id": 149,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Ganache White Cake — sell price SGD 60.00, 3 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:02:00+00:00"
+      },
+      {
+        "id": 150,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell price SGD 60.00, 5 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:02:00+00:00"
+      },
+      {
+        "id": 151,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "UHT WHIPPING CREAM DAIRY — 1 L for SGD 11.16 (SGD 11.16/L)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:04:00+00:00"
+      },
+      {
+        "id": 152,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "WHIPPING (NON-DAIRY — 1.1 kg for SGD 6.40 (SGD 5.82/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:05:00+00:00"
+      },
+      {
+        "id": 153,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell price SGD 60.00, 7 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:08:00+00:00"
+      },
+      {
+        "id": 154,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "WHITE ROLLED FONDANT VANILLA 1KG — 1 kg for SGD 11.84 (SGD 11.84/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:10:00+00:00"
+      },
+      {
+        "id": 155,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell price SGD 60.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:10:00+00:00"
+      },
+      {
+        "id": 156,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell price SGD 100.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:12:00+00:00"
+      },
+      {
+        "id": 157,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Buddhika Wimalasena — Ganache White Cake × 1, sell SGD 100.00, cost SGD 12.83",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:14:00+00:00"
+      },
+      {
+        "id": 158,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Buddhika Wimalasena — Ganache White Cake × 1",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:14:00+00:00"
+      },
+      {
+        "id": 159,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small — sell price SGD 55.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:15:00+00:00"
+      },
+      {
+        "id": 160,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 1 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:16:00+00:00"
+      },
+      {
+        "id": 161,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 2 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:18:00+00:00"
+      },
+      {
+        "id": 162,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 5 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:19:00+00:00"
+      },
+      {
+        "id": 163,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:20:00+00:00"
+      },
+      {
+        "id": 164,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:21:00+00:00"
+      },
+      {
+        "id": 165,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashewnuts (raw) (was: Casunuts (raw))",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:21:00+00:00"
+      },
+      {
+        "id": 166,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:21:00+00:00"
+      },
+      {
+        "id": 167,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 75.00, cost SGD 35.38",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:23:00+00:00"
+      },
+      {
+        "id": 168,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Nidani — 23 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:24:00+00:00"
+      },
+      {
+        "id": 169,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:24:00+00:00"
+      },
+      {
+        "id": 170,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Nidani 2 — Date and Nut cake L × 1, sell SGD 75.00, cost SGD 35.38",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:25:00+00:00"
+      },
+      {
+        "id": 171,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Party Cake — sell price SGD 50.00, 1 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:27:00+00:00"
+      },
+      {
+        "id": 172,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 50.00, 4 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:28:00+00:00"
+      },
+      {
+        "id": 173,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 50.00, 6 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:29:00+00:00"
+      },
+      {
+        "id": 174,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 50.00, 6 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:35:00+00:00"
+      },
+      {
+        "id": 175,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Galbani Cheese - Mascarpone — 250 g for SGD 11.95 (SGD 0.05/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:37:00+00:00"
+      },
+      {
+        "id": 176,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 50.00, 7 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:37:00+00:00"
+      },
+      {
+        "id": 177,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small — sell price SGD 55.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:38:00+00:00"
+      },
+      {
+        "id": 178,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:39:00+00:00"
+      },
+      {
+        "id": 179,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 50.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:41:00+00:00"
+      },
+      {
+        "id": 180,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Party Cake — sell price SGD 67.99, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-09T20:42:00+00:00"
+      },
+      {
+        "id": 181,
+        "type": "order",
+        "action": "Order marked pending",
+        "detail": "Buddhika Wimalasena — Ganache White Cake × 1",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:20:00+00:00"
+      },
+      {
+        "id": 182,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Buddhika Wimalasena — Ganache White Cake × 1",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:20:00+00:00"
+      },
+      {
+        "id": 183,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 09 May 2026",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:21:00+00:00"
+      },
+      {
+        "id": 184,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell price SGD 0.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:23:00+00:00"
+      },
+      {
+        "id": 185,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cost SGD 36.20",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:24:00+00:00"
+      },
+      {
+        "id": 186,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell price SGD 75.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T07:24:00+00:00"
+      },
+      {
+        "id": 187,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CAKEBOARD 10\" ROUND GLOSSY GOLD 5PCS (#65374) — 5 pcs for SGD 3.80 (SGD 0.76/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:06:00+00:00"
+      },
+      {
+        "id": 188,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CAKEBOARD 10\" SQUARE/GOLD 5PCS (#56350) — 5 pcs for SGD 3.85 (SGD 0.77/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:06:00+00:00"
+      },
+      {
+        "id": 189,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "CAKEBOARD 8\" ROUND GLOSSY GOLD 5PCS (#65372) (was: CAKEBOARD 8\" SQUARE/GOLD 5PCS)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:07:00+00:00"
+      },
+      {
+        "id": 190,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "CAKE BOARD 12\" SQUARE GOLD 5PCS (#57064) — 5 pcs for SGD 5.80 (SGD 1.16/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:08:00+00:00"
+      },
+      {
+        "id": 191,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "SOFT GOLD PEARL POWDER COL1001AF 25G — 25 g for SGD 20.80 (SGD 0.83/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:15:00+00:00"
+      },
+      {
+        "id": 192,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "White Gum Paste — 1 kg for SGD 17.90 (SGD 17.90/kg)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:19:00+00:00"
+      },
+      {
+        "id": 193,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "MADAGASCAR VANILLA EXTRACT 8OZ (was: Vanilla extract) — price: SGD 0.21 → SGD 57.90 — stock: 235.9 → 236 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:21:00+00:00"
+      },
+      {
+        "id": 194,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "MADAGASCAR VANILLA EXTRACT 8OZ — price: SGD 57.90 → SGD 0.25",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T09:22:00+00:00"
+      },
+      {
+        "id": 195,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Vanila Cake 2 layer — sell price SGD 67.99, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:01:00+00:00"
+      },
+      {
+        "id": 196,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Cheese Cake — sell price SGD 70.00, 2 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:30:00+00:00"
+      },
+      {
+        "id": 197,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 4 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:31:00+00:00"
+      },
+      {
+        "id": 198,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 5 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:32:00+00:00"
+      },
+      {
+        "id": 199,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "McVities Digestives Biscuits — 400 g for SGD 3.00 (SGD 0.01/g)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:34:00+00:00"
+      },
+      {
+        "id": 200,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 6 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:35:00+00:00"
+      },
+      {
+        "id": 201,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:35:00+00:00"
+      },
+      {
+        "id": 202,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Lemon — 1 pcs for SGD 1.00 (SGD 1.00/pcs)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:36:00+00:00"
+      },
+      {
+        "id": 203,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 8 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:36:00+00:00"
+      },
+      {
+        "id": 204,
+        "type": "add",
+        "action": "Ingredient added",
+        "detail": "Bulla Sour Cream - Original — 200 ml for SGD 4.95 (SGD 0.02/ml)",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:37:00+00:00"
+      },
+      {
+        "id": 205,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake — sell price SGD 70.00, 9 ingredients",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:37:00+00:00"
+      },
+      {
+        "id": 206,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Eggs — stock: 15 → 10 pcs",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:49:00+00:00"
+      },
+      {
+        "id": 207,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "MADAGASCAR VANILLA EXTRACT 8OZ — stock: 236 → 180 ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:50:00+00:00"
+      },
+      {
+        "id": 208,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cream cheese — stock: 1 → 0 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:50:00+00:00"
+      },
+      {
+        "id": 209,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Icing sugar — stock: 2 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:50:00+00:00"
+      },
+      {
+        "id": 210,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Self Raising Flour — stock: 1.75 → 1 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:50:00+00:00"
+      },
+      {
+        "id": 211,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Cashewnuts (raw) — stock: 1 → 0 kg",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:51:00+00:00"
+      },
+      {
+        "id": 212,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "MINT GREEN - AMERICOLOR -SOFTGEL COLOR PASTE — price: SGD 4.52 → SGD 0.21 — stock: 1 → 22 ml — unit: kg → ml",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:52:00+00:00"
+      },
+      {
+        "id": 213,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "McVities Digestives Biscuits — stock: 400 → 0 g",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:52:00+00:00"
+      },
+      {
+        "id": 214,
+        "type": "edit",
+        "action": "Ingredient updated",
+        "detail": "Lemon — stock: 1 → 0 pcs",
+        "entity_type": null,
+        "entity_id": null,
+        "field_changes": null,
+        "time": "2026-05-10T11:53:00+00:00"
+      },
+      {
+        "id": 215,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1",
+        "entity_type": "order",
+        "entity_id": 6,
+        "field_changes": null,
+        "time": "2026-05-15T13:48:49.243046+00:00"
+      },
+      {
+        "id": 216,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell SGD 100.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 2,
+        "field_changes": null,
+        "time": "2026-05-15T13:49:34.885689+00:00"
+      },
+      {
+        "id": 217,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake — sell SGD 70.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 2,
+        "field_changes": {
+          "sellPrice": {
+            "new": 70,
+            "old": 100
+          }
+        },
+        "time": "2026-05-15T13:50:18.40765+00:00"
+      },
+      {
+        "id": 218,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Buddhika Wimanlasena — Ganache White Cake × 1, sell SGD 0.00, cake cost SGD 46.10, profit SGD -46.10",
+        "entity_type": "order",
+        "entity_id": 7,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:01.300088+00:00"
+      },
+      {
+        "id": 219,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 13 May 2026",
+        "entity_type": "order",
+        "entity_id": 6,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:10.18717+00:00"
+      },
+      {
+        "id": 220,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Buddhika Wimanlasena — Ganache White Cake × 1",
+        "entity_type": "order",
+        "entity_id": 7,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:28.069812+00:00"
+      },
+      {
+        "id": 221,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Buddhika Wimalasena — 03 May 2026",
+        "entity_type": "order",
+        "entity_id": 3,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:48.86037+00:00"
+      },
+      {
+        "id": 222,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Nidani 2 — 25 May 2026",
+        "entity_type": "order",
+        "entity_id": 5,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:51.325707+00:00"
+      },
+      {
+        "id": 223,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Nidani 2 — 25 May 2026",
+        "entity_type": "order",
+        "entity_id": 2,
+        "field_changes": null,
+        "time": "2026-05-15T13:52:53.115296+00:00"
+      },
+      {
+        "id": 224,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.54, profit SGD -41.54",
+        "entity_type": "order",
+        "entity_id": 8,
+        "field_changes": null,
+        "time": "2026-05-15T13:54:27.982047+00:00"
+      },
+      {
+        "id": 225,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 8,
+        "field_changes": null,
+        "time": "2026-05-15T13:55:34.061035+00:00"
+      },
+      {
+        "id": 226,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.54, profit SGD -41.54",
+        "entity_type": "order",
+        "entity_id": 9,
+        "field_changes": null,
+        "time": "2026-05-15T13:56:07.255706+00:00"
+      },
+      {
+        "id": 227,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1",
+        "entity_type": "order",
+        "entity_id": 9,
+        "field_changes": null,
+        "time": "2026-05-15T13:56:15.034863+00:00"
+      },
+      {
+        "id": 228,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Nidhani Jayasinghe — Date and Nut cake small × 1, sell SGD 55.00, cake cost SGD 47.01, profit SGD 7.99",
+        "entity_type": "order",
+        "entity_id": 10,
+        "field_changes": null,
+        "time": "2026-05-15T13:57:12.433997+00:00"
+      },
+      {
+        "id": 229,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small — sell SGD 55.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 1,
+        "field_changes": null,
+        "time": "2026-05-15T13:58:03.217334+00:00"
+      },
+      {
+        "id": 230,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 9,
+        "field_changes": null,
+        "time": "2026-05-15T14:04:38.150785+00:00"
+      },
+      {
+        "id": 231,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.54, profit SGD -41.54",
+        "entity_type": "order",
+        "entity_id": 11,
+        "field_changes": null,
+        "time": "2026-05-15T14:05:45.205434+00:00"
+      },
+      {
+        "id": 232,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell SGD 75.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 3,
+        "field_changes": null,
+        "time": "2026-05-15T14:06:37.749068+00:00"
+      },
+      {
+        "id": 233,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 11,
+        "field_changes": null,
+        "time": "2026-05-15T14:06:53.858714+00:00"
+      },
+      {
+        "id": 234,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.79, profit SGD -41.79",
+        "entity_type": "order",
+        "entity_id": 12,
+        "field_changes": null,
+        "time": "2026-05-15T14:07:48.910949+00:00"
+      },
+      {
+        "id": 235,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "xxx — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.79, profit SGD -41.79",
+        "entity_type": "order",
+        "entity_id": 13,
+        "field_changes": null,
+        "time": "2026-05-15T14:08:55.385973+00:00"
+      },
+      {
+        "id": 236,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "xxx — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 13,
+        "field_changes": null,
+        "time": "2026-05-15T14:09:00.828213+00:00"
+      },
+      {
+        "id": 237,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "xxx — Date and Nut cake L × 1, sell SGD 1.00, cake cost SGD 41.79, profit SGD -40.79",
+        "entity_type": "order",
+        "entity_id": 14,
+        "field_changes": null,
+        "time": "2026-05-15T14:09:31.357016+00:00"
+      },
+      {
+        "id": 238,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "xxx — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 14,
+        "field_changes": null,
+        "time": "2026-05-15T14:09:43.158847+00:00"
+      },
+      {
+        "id": 239,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 12,
+        "field_changes": null,
+        "time": "2026-05-15T14:09:45.378064+00:00"
+      },
+      {
+        "id": 240,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 0.00, cake cost SGD 41.79, profit SGD -41.79",
+        "entity_type": "order",
+        "entity_id": 15,
+        "field_changes": null,
+        "time": "2026-05-15T14:10:53.274371+00:00"
+      },
+      {
+        "id": 241,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Sewandi Wimalasena — 15 May 2026",
+        "entity_type": "order",
+        "entity_id": 15,
+        "field_changes": null,
+        "time": "2026-05-15T14:10:56.695312+00:00"
+      },
+      {
+        "id": 242,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1, sell SGD 1.00, cake cost SGD 41.79, profit SGD -40.79",
+        "entity_type": "order",
+        "entity_id": 16,
+        "field_changes": null,
+        "time": "2026-05-15T14:11:45.767166+00:00"
+      },
+      {
+        "id": 243,
+        "type": "order",
+        "action": "Order marked done",
+        "detail": "Sewandi Wimalasena — Date and Nut cake L × 1",
+        "entity_type": "order",
+        "entity_id": 16,
+        "field_changes": null,
+        "time": "2026-05-15T14:11:53.866648+00:00"
+      },
+      {
+        "id": 244,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L — sell SGD 75.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 3,
+        "field_changes": {
+          "yield": {
+            "new": "11 inch (1.75KG)",
+            "old": "11 inch"
+          }
+        },
+        "time": "2026-05-15T15:37:14.477467+00:00"
+      },
+      {
+        "id": 245,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small — sell SGD 55.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 1,
+        "field_changes": {
+          "yield": {
+            "new": "8 inch (850g)",
+            "old": "8 inch"
+          }
+        },
+        "time": "2026-05-15T15:39:12.275274+00:00"
+      },
+      {
+        "id": 246,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Vanila Cake 3 layer,with Butter Icing & filing — sell SGD 68.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 4,
+        "field_changes": {
+          "name": {
+            "new": "Vanila Cake 3 layer,with Butter Icing & filing",
+            "old": "Vanila Cake 2 layer"
+          },
+          "sellPrice": {
+            "new": 68,
+            "old": 67.99
+          }
+        },
+        "time": "2026-05-15T15:41:03.755922+00:00"
+      },
+      {
+        "id": 247,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake 3 Layer, 1 Tire basic — sell SGD 70.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 2,
+        "field_changes": {
+          "name": {
+            "new": "Ganache White Cake 3 Layer, 1 Tire basic",
+            "old": "Ganache White Cake"
+          }
+        },
+        "time": "2026-05-15T15:47:52.419133+00:00"
+      },
+      {
+        "id": 248,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake 3 Layer, 1 Tire basic with fondant Roses — sell SGD 70.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 2,
+        "field_changes": {
+          "name": {
+            "new": "Ganache White Cake 3 Layer, 1 Tire basic with fondant Roses",
+            "old": "Ganache White Cake 3 Layer, 1 Tire basic"
+          },
+          "yield": {
+            "new": "6\"D x 5\"H",
+            "old": "6\"D x 6\"H"
+          }
+        },
+        "time": "2026-05-15T15:51:20.406033+00:00"
+      },
+      {
+        "id": 249,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small (850g) — sell SGD 55.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 1,
+        "field_changes": {
+          "name": {
+            "new": "Date and Nut cake small (850g)",
+            "old": "Date and Nut cake small"
+          }
+        },
+        "time": "2026-05-15T15:55:55.014506+00:00"
+      },
+      {
+        "id": 250,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L (1.75kg) — sell SGD 75.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 3,
+        "field_changes": {
+          "name": {
+            "new": "Date and Nut cake L (1.75kg)",
+            "old": "Date and Nut cake L"
+          }
+        },
+        "time": "2026-05-15T15:56:17.767095+00:00"
+      },
+      {
+        "id": 251,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Vanila Cake 2 layer,with Butter Icing & filing — sell SGD 68.00/unit, 8 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 4,
+        "field_changes": {
+          "name": {
+            "new": "Vanila Cake 2 layer,with Butter Icing & filing",
+            "old": "Vanila Cake 3 layer,with Butter Icing & filing"
+          }
+        },
+        "time": "2026-05-15T16:01:22.411749+00:00"
+      },
+      {
+        "id": 252,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Ganache White Cake 3 Layer, 1 Tire basic with fondant Roses — sell SGD 70.00/unit, 9 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 2,
+        "field_changes": null,
+        "time": "2026-05-15T16:02:13.822891+00:00"
+      },
+      {
+        "id": 253,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake small (850g) — sell SGD 55.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 1,
+        "field_changes": null,
+        "time": "2026-05-15T16:03:14.120743+00:00"
+      },
+      {
+        "id": 254,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Date and Nut cake L (1.75kg) — sell SGD 75.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 3,
+        "field_changes": null,
+        "time": "2026-05-15T16:03:37.543722+00:00"
+      },
+      {
+        "id": 255,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake, optinal: friuts or Jam topping — sell SGD 70.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 5,
+        "field_changes": {
+          "name": {
+            "new": "Cheese Cake, optinal: friuts or Jam topping",
+            "old": "Cheese Cake"
+          }
+        },
+        "time": "2026-05-15T16:05:18.763321+00:00"
+      },
+      {
+        "id": 256,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake, optinal: friuts or Jam topping — sell SGD 70.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 5,
+        "field_changes": {
+          "yield": {
+            "new": "8 inch (2kg)",
+            "old": "8 inch"
+          }
+        },
+        "time": "2026-05-15T16:08:39.290662+00:00"
+      },
+      {
+        "id": 257,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake, optinal: friuts or Jam topping — sell SGD 70.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 5,
+        "field_changes": {
+          "yield": {
+            "new": "9 inch (2kg)",
+            "old": "8 inch (2kg)"
+          }
+        },
+        "time": "2026-05-15T16:09:39.234469+00:00"
+      },
+      {
+        "id": 258,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Cheese Cake 6-Inch , optinal: friuts or Jam topping — sell SGD 50.00/unit, 10 ingredients, batch SGD 20.00+SGD 5.00+SGD 2.00/u",
+        "entity_type": "recipe",
+        "entity_id": 6,
+        "field_changes": null,
+        "time": "2026-05-15T16:15:35.42649+00:00"
+      },
+      {
+        "id": 259,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "Cheese Cake, optinal: friuts or Jam topping — sell SGD 70.00/unit, 10 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 5,
+        "field_changes": null,
+        "time": "2026-05-15T16:16:09.326253+00:00"
+      },
+      {
+        "id": 260,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Fondent Cake 2 layer, with Butter filing — sell SGD 68.00/unit, 10 ingredients, batch SGD 60.00+SGD 5.00+SGD 2.00/u",
+        "entity_type": "recipe",
+        "entity_id": 7,
+        "field_changes": null,
+        "time": "2026-05-15T16:21:19.033633+00:00"
+      },
+      {
+        "id": 261,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "3D figer — sell SGD 0.00/unit, 3 ingredients, batch SGD 30.00+SGD 1.00+SGD 0.00/u",
+        "entity_type": "recipe",
+        "entity_id": 8,
+        "field_changes": null,
+        "time": "2026-05-15T16:23:32.041545+00:00"
+      },
+      {
+        "id": 262,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "3D figer — sell SGD 36.00/unit, 3 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 8,
+        "field_changes": {
+          "sellPrice": {
+            "new": 36,
+            "old": 0
+          }
+        },
+        "time": "2026-05-15T16:23:51.934919+00:00"
+      },
+      {
+        "id": 263,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "3D figer — sell SGD 36.00/unit, 3 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 8,
+        "field_changes": {
+          "defaultLabour": {
+            "new": 20,
+            "old": 30
+          }
+        },
+        "time": "2026-05-15T16:25:46.457833+00:00"
+      },
+      {
+        "id": 264,
+        "type": "edit",
+        "action": "Recipe updated",
+        "detail": "3D figer — sell SGD 28.00/unit, 3 ingredients",
+        "entity_type": "recipe",
+        "entity_id": 8,
+        "field_changes": {
+          "sellPrice": {
+            "new": 28,
+            "old": 36
+          }
+        },
+        "time": "2026-05-15T16:26:15.157023+00:00"
+      },
+      {
+        "id": 265,
+        "type": "add",
+        "action": "Recipe added",
+        "detail": "Additinal 3D figer — sell SGD 22.00/unit, 3 ingredients, batch SGD 15.00+SGD 1.00+SGD 0.00/u",
+        "entity_type": "recipe",
+        "entity_id": 9,
+        "field_changes": null,
+        "time": "2026-05-15T16:27:36.097823+00:00"
+      },
+      {
+        "id": 266,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Ven Sugatawansa — Cheese Cake, optinal: friuts or Jam topping × 1, sell SGD 0.00, cake cost SGD 43.70, profit SGD -43.70",
+        "entity_type": "order",
+        "entity_id": 17,
+        "field_changes": null,
+        "time": "2026-05-15T16:30:31.08402+00:00"
+      },
+      {
+        "id": 267,
+        "type": "delete",
+        "action": "Order deleted",
+        "detail": "Ven Sugatawansa — 03 Jun 2026",
+        "entity_type": "order",
+        "entity_id": 17,
+        "field_changes": null,
+        "time": "2026-05-15T16:30:59.265853+00:00"
+      },
+      {
+        "id": 268,
+        "type": "order",
+        "action": "Order placed",
+        "detail": "Ven Sugatawansa — Cheese Cake, optinal: friuts or Jam topping × 1, sell SGD 1.00, cake cost SGD 34.70, profit SGD -33.70",
+        "entity_type": "order",
+        "entity_id": 18,
+        "field_changes": null,
+        "time": "2026-05-15T16:31:44.361999+00:00"
+      }
+    ]
+  }
+}
