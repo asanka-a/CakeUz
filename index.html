@@ -221,6 +221,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
     <button class="nav-btn" onclick="switchTab('recipes',this)"><span class="nav-icon">🍰</span> Recipes</button>
     <button class="nav-btn" onclick="switchTab('orders',this)"><span class="nav-icon">📝</span> Orders</button>
     <button class="nav-btn" onclick="switchTab('quotations',this)"><span class="nav-icon">📄</span> Quotations</button>
+    <button class="nav-btn" onclick="switchTab('customers',this)"><span class="nav-icon">👥</span> Customers</button>
     <button class="nav-btn" onclick="switchTab('pricing',this)"><span class="nav-icon">💰</span> Pricing</button>
     <button class="nav-btn" onclick="switchTab('activitylog',this)"><span class="nav-icon">📜</span> Activity Log</button>
     <button class="nav-btn" onclick="switchTab('help',this)"><span class="nav-icon">📖</span> Help</button>
@@ -238,6 +239,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
     <div id="tab-recipes" class="section"></div>
     <div id="tab-orders" class="section"></div>
     <div id="tab-quotations" class="section"></div>
+    <div id="tab-customers" class="section"></div>
     <div id="tab-pricing" class="section"></div>
     <div id="tab-activitylog" class="section"></div>
     <div id="tab-help" class="section"></div>
@@ -284,7 +286,7 @@ async function dbPost(action, data, log) {
 // ── LOAD ──────────────────────────────────────────────────────
 async function loadAllFromSupabase() {
   try {
-    const [ing, ph, rec, ri, ord, trip, si, log, quo] = await Promise.all([
+    const [ing, ph, rec, ri, ord, trip, si, log, quo, cust] = await Promise.all([
       sb.from('ingredients').select('*').order('id'),
       sb.from('price_history').select('*'),
       sb.from('recipes').select('*').order('id'),
@@ -293,9 +295,10 @@ async function loadAllFromSupabase() {
       sb.from('shopping_trips').select('*').order('id'),
       sb.from('shopping_items').select('*'),
       sb.from('activity_log').select('*').order('time', { ascending: false }).limit(1000),
-      sb.from('quotations').select('*').order('id', { ascending: false })
+      sb.from('quotations').select('*').order('id', { ascending: false }),
+      sb.from('customers').select('*').order('name', { ascending: true })
     ]);
-    for (const r of [ing, ph, rec, ri, ord, trip, si, log, quo]) {
+    for (const r of [ing, ph, rec, ri, ord, trip, si, log, quo, cust]) {
       if (r.error) throw r.error;
     }
 
@@ -349,6 +352,7 @@ async function loadAllFromSupabase() {
         customerPhone: o.customer_phone || '',
         customerEmail: o.customer_email || '',
         customerAddress: o.customer_address || '',
+        customerId: o.customer_id || null,
         recipeId: o.recipe_id,
         qty: o.qty,
         note: o.note || '',
@@ -377,6 +381,7 @@ async function loadAllFromSupabase() {
       customerPhone: q.customer_phone || '',
       customerEmail: q.customer_email || '',
       customerAddress: q.customer_address || '',
+      customerId: q.customer_id || null,
       recipeId: q.recipe_id,
       qty: q.qty || 1,
       note: q.note || '',
@@ -418,7 +423,19 @@ async function loadAllFromSupabase() {
       fieldChanges: l.field_changes || null
     }));
 
-    return { ok: true, ingredients, priceHistory, recipes, orders, shoppingTrips, activityLog, quotations };
+    const customers = (cust.data || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone || '',
+      email: c.email || '',
+      address: c.address || '',
+      notes: c.notes || '',
+      birthday: c.birthday || null,
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      createdAt: c.created_at
+    }));
+
+    return { ok: true, ingredients, priceHistory, recipes, orders, shoppingTrips, activityLog, quotations, customers };
   } catch (e) {
     console.error('Supabase load error:', e);
     return { ok: false, error: e.message || String(e) };
@@ -447,6 +464,9 @@ async function dispatchWrite(action, d) {
     case 'deleteQuotation':    return sbDeleteQuotation(d);
     case 'setQuotationStatus': return sbSetQuotationStatus(d);
     case 'convertQuotation':   return sbConvertQuotation(d);
+    case 'addCustomer':        return sbAddCustomer(d);
+    case 'editCustomer':       return sbEditCustomer(d);
+    case 'deleteCustomer':     return sbDeleteCustomer(d);
     default: return { ok: false, error: 'Unknown action: ' + action };
   }
 }
@@ -545,6 +565,7 @@ function orderRowFromForm(d) {
     customer_phone: d.customerPhone || '',
     customer_email: d.customerEmail || '',
     customer_address: d.customerAddress || '',
+    customer_id: d.customerId || null,
     recipe_id: d.recipeId,
     qty: d.qty,
     note: d.note || '',
@@ -606,6 +627,7 @@ function quotationRowFromForm(d) {
     customer_phone: d.customerPhone || '',
     customer_email: d.customerEmail || '',
     customer_address: d.customerAddress || '',
+    customer_id: d.customerId || null,
     recipe_id: d.recipeId,
     qty: d.qty || 1,
     note: d.note || '',
@@ -705,6 +727,34 @@ async function sbAddLog(d) {
 }
 async function sbClearLog() {
   const { error } = await sb.from('activity_log').delete().gt('id', 0);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── CUSTOMERS ─────────────────────────────────────────────────
+function customerRowFromForm(d) {
+  return {
+    name: d.name,
+    phone: d.phone || null,
+    email: d.email || null,
+    address: d.address || null,
+    notes: d.notes || null,
+    birthday: d.birthday || null,
+    tags: Array.isArray(d.tags) ? d.tags : []
+  };
+}
+async function sbAddCustomer(d) {
+  const row = customerRowFromForm(d);
+  if (d.id) row.id = d.id;
+  const { data, error } = await sb.from('customers').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+async function sbEditCustomer(d) {
+  const { error } = await sb.from('customers').update(customerRowFromForm(d)).eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+async function sbDeleteCustomer(d) {
+  const { error } = await sb.from('customers').delete().eq('id', d.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
@@ -828,7 +878,8 @@ const S = {
   recipes: [],
   orders: [],
   quotations: [],
-  nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1, nextQuotationId: 1
+  customers: [],
+  nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1, nextQuotationId: 1, nextCustomerId: 1
 };
 
 // HTML-escape for any user-typed string going into innerHTML or attribute values.
@@ -883,7 +934,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(btn) btn.classList.add('active');
-  ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,quotations:renderQuotations,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
+  ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,quotations:renderQuotations,customers:renderCustomers,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
 }
 
 // ─── THEME ──────────────────────────────────────────────────────────────────
@@ -913,7 +964,8 @@ const _sortState = {
   inventory:  { col: null, dir: 'asc' },
   recipes:    { col: null, dir: 'asc' },
   orders:     { col: null, dir: 'asc' },
-  quotations: { col: null, dir: 'asc' }
+  quotations: { col: null, dir: 'asc' },
+  customers:  { col: null, dir: 'asc' }
 };
 function setSort(tab, col){
   const s = _sortState[tab];
@@ -925,7 +977,7 @@ function setSort(tab, col){
     s.col = col;
     s.dir = 'asc';
   }
-  ({ inventory: renderInventory, recipes: renderRecipes, orders: renderOrders, quotations: renderQuotations })[tab]();
+  ({ inventory: renderInventory, recipes: renderRecipes, orders: renderOrders, quotations: renderQuotations, customers: renderCustomers })[tab]();
 }
 function sortRows(rows, col, dir, getter){
   if (!col) return rows;
@@ -1200,7 +1252,7 @@ function renderOrders(){
           const cost = parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
           const margin = sell > 0 ? Math.round((sell - cost) / sell * 100) : 0;
           return `<tr>
-            <td style="font-weight:500">${esc(o.customer)}</td>
+            <td style="font-weight:500">${o.customerId ? `<a href="#" onclick="showCustomerDetail(${o.customerId});return false" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text-muted)">${esc(o.customer)}</a>` : esc(o.customer)}</td>
             <td style="font-size:11px;color:var(--text-secondary)">${esc(o.customerPhone || '—')}</td>
             <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
             <td>${o.qty}</td>
@@ -1354,10 +1406,12 @@ function showQuotationForm(q, mode){
     : (Array.isArray(firstRecipe.packaging) ? firstRecipe.packaging : []);
   const startAddons = q && Array.isArray(q.addons) ? q.addons : [];
   showModal(`<div class="modal-title">${mode === 'Edit' ? 'Edit Quotation #' + q.id : 'New Quotation'}</div>
-    <div class="modal-section-title">Customer</div>
+    <div class="modal-section-title">Customer <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— start typing a name; the rest auto-fills for returning customers</span></div>
+    <input type="hidden" id="m-ocustid" value="${q?.customerId || ''}">
+    <datalist id="customer-list">${S.customers.map(c => `<option value="${esc(c.name)}">${esc(c.phone || c.email || '')}</option>`).join('')}</datalist>
     <div class="form-row">
-      <div class="form-group"><label>Name</label><input id="m-ocust" value="${esc(q?.customer || '')}" placeholder="Customer name"></div>
-      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(q?.customerPhone || '')}" placeholder="+65 ..."></div>
+      <div class="form-group"><label>Name</label><input id="m-ocust" list="customer-list" autocomplete="off" value="${esc(q?.customer || '')}" placeholder="Customer name" oninput="onCustomerNameChanged()"></div>
+      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(q?.customerPhone || '')}" placeholder="+65 ..." oninput="onCustomerPhoneChanged()"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email" value="${esc(q?.customerEmail || '')}"></div>
@@ -1435,6 +1489,7 @@ function readQuotationFormPayload(){
 }
 async function saveQuotation(){
   const p = readQuotationFormPayload(); if (!p) return;
+  p.customerId = await resolveCustomerForPayload(p);
   const id = S.nextQuotationId++;
   const { recipe, dueDate, ...rest } = p;
   const quotation = { id, ...rest, convertedOrderId: null, createdAt: new Date().toISOString() };
@@ -1447,6 +1502,7 @@ async function saveEditQuotation(id){
   const existing = S.quotations.find(x => x.id === id);
   if (!existing) return;
   const p = readQuotationFormPayload(); if (!p) return;
+  p.customerId = await resolveCustomerForPayload(p);
   const { recipe, dueDate, ...rest } = p;
   Object.assign(existing, rest);
   logAction('quote','Quotation updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}`, 'quotation', id);
@@ -1550,6 +1606,7 @@ async function convertQuotationToOrder(quoteId){
   const order = {
     id,
     customer: q.customer, customerPhone: q.customerPhone, customerEmail: q.customerEmail, customerAddress: q.customerAddress,
+    customerId: q.customerId || null,
     recipeId: q.recipeId, qty: q.qty,
     note: q.note || '',
     dueDate: q.validUntil || today(),
@@ -1572,6 +1629,218 @@ async function convertQuotationToOrder(quoteId){
   logAction('quote','Quotation accepted → Order placed', `Quote #${q.id} → Order #${id} — ${q.customer}`, 'order', id);
   renderQuotations();
   await persistWrite('convertQuotation', { ...order, quotationId: q.id }, activityLog[0]);
+}
+
+// ─── CUSTOMERS ───────────────────────────────────────────────────────────────
+const getCustomer = id => S.customers.find(c => c.id === id);
+function findCustomerByPhone(phone){
+  const p = (phone || '').trim();
+  if (!p) return null;
+  return S.customers.find(c => (c.phone || '').trim() === p);
+}
+function findCustomerByName(name){
+  const n = (name || '').trim().toLowerCase();
+  if (!n) return null;
+  return S.customers.find(c => (c.name || '').trim().toLowerCase() === n);
+}
+// Aggregate stats for one customer: how many orders, total revenue from done orders, last order date.
+function customerStats(custId){
+  const orders = S.orders.filter(o => o.customerId === custId);
+  const done = orders.filter(o => o.status === 'done');
+  const revenue = done.reduce((s,o) => {
+    const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0);
+    const cakeRev = sellPerU * (o.qty || 1);
+    const addonRev = (o.addons || []).reduce((a,x) => a + Number(x.price||0) * Number(x.qty||0), 0);
+    return s + cakeRev + addonRev;
+  }, 0);
+  const lastKey = orders.reduce((latest,o) => {
+    const k = dateKey(o.dueDate);
+    return (k && k > latest) ? k : latest;
+  }, '');
+  return { orderCount: orders.length, doneCount: done.length, revenue, lastOrderDate: lastKey || null };
+}
+
+function renderCustomers(){
+  const ss = _sortState.customers;
+  const decorated = S.customers.map(c => ({ c, stats: customerStats(c.id) }));
+  const sorted = sortRows(decorated, ss.col, ss.dir, (row, col) => {
+    switch (col) {
+      case 'name':    return row.c.name || '';
+      case 'phone':   return row.c.phone || '';
+      case 'email':   return row.c.email || '';
+      case 'orders':  return row.stats.orderCount;
+      case 'spent':   return row.stats.revenue;
+      case 'last':    return row.stats.lastOrderDate || '';
+      default: return null;
+    }
+  });
+  document.getElementById('tab-customers').innerHTML = `
+    <div class="metric-grid" style="margin-bottom:1rem">
+      <div class="metric"><div class="metric-label">Customers</div><div class="metric-val">${S.customers.length}</div></div>
+      <div class="metric"><div class="metric-label">With orders</div><div class="metric-val green">${S.customers.filter(c => customerStats(c.id).orderCount > 0).length}</div></div>
+      <div class="metric"><div class="metric-label">Total revenue (done)</div><div class="metric-val">${fmtMoney(S.customers.reduce((s,c)=>s+customerStats(c.id).revenue,0))}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Customers</span><button class="btn btn-primary btn-sm" onclick="showAddCustomer()">+ Add customer</button></div>
+      <table>
+        <thead><tr>
+          ${sortableTh('customers','name','Name','22%')}
+          ${sortableTh('customers','phone','Phone','14%')}
+          ${sortableTh('customers','email','Email','20%')}
+          ${sortableTh('customers','orders','Orders','8%')}
+          ${sortableTh('customers','spent','Total spent','13%')}
+          ${sortableTh('customers','last','Last order','12%')}
+          <th style="width:11%"></th>
+        </tr></thead>
+        <tbody>${sorted.map(({c, stats}) => `<tr>
+          <td style="font-weight:500">${esc(c.name)}${(c.tags||[]).length ? '<br>' + c.tags.map(t => `<span class="badge badge-info" style="margin-right:3px">${esc(t)}</span>`).join('') : ''}</td>
+          <td style="font-size:12px;color:var(--text-secondary)">${esc(c.phone || '—')}</td>
+          <td style="font-size:12px;color:var(--text-secondary)">${esc(c.email || '—')}</td>
+          <td>${stats.orderCount}${stats.doneCount !== stats.orderCount ? `<span style="font-size:11px;color:var(--text-muted)"> (${stats.doneCount} done)</span>` : ''}</td>
+          <td style="font-weight:500">${fmtMoney(stats.revenue)}</td>
+          <td style="font-size:12px">${stats.lastOrderDate ? fmtDate(stats.lastOrderDate) : '—'}</td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="showCustomerDetail(${c.id})">View</button>
+            <button class="btn btn-sm" onclick="showEditCustomer(${c.id})">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this customer? Their past orders stay; just the link is cleared.'))deleteCustomer(${c.id})">Del</button>
+          </div></td>
+        </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.5rem">No customers yet. They'll be created automatically when you place orders.</td></tr>`}</tbody>
+      </table>
+    </div>`;
+}
+
+function showAddCustomer(){ showCustomerForm(null, 'Add'); }
+function showEditCustomer(id){
+  const c = getCustomer(id); if (!c) return;
+  showCustomerForm(c, 'Edit');
+}
+function showCustomerForm(c, mode){
+  const isEdit = mode === 'Edit';
+  const tagsStr = c && Array.isArray(c.tags) ? c.tags.join(', ') : '';
+  showModal(`<div class="modal-title">${mode} customer</div>
+    <div class="form-row">
+      <div class="form-group"><label>Name</label><input id="m-cname" value="${esc(c?.name || '')}" placeholder="Customer name"></div>
+      <div class="form-group"><label>Phone</label><input id="m-cphone" value="${esc(c?.phone || '')}" placeholder="+65 ..."></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Email (optional)</label><input id="m-cemail" type="email" value="${esc(c?.email || '')}"></div>
+      <div class="form-group"><label>Birthday (optional)</label><input id="m-cbday" type="date" value="${esc(c?.birthday || '')}"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Address (optional)</label><input id="m-caddr" value="${esc(c?.address || '')}" placeholder="For delivery"></div></div>
+    <div class="form-row"><div class="form-group"><label>Tags (comma-separated)</label><input id="m-ctags" value="${esc(tagsStr)}" placeholder="e.g. VIP, corporate"></div></div>
+    <div class="form-row"><div class="form-group"><label>Notes</label><textarea id="m-cnotes" style="width:100%;min-height:60px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--warm-white);color:var(--text-primary);resize:vertical" placeholder="Allergies, dietary preferences, special requests…">${esc(c?.notes || '')}</textarea></div></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="${isEdit?`saveEditCustomer(${c.id})`:'saveCustomer()'}">${isEdit?'Save changes':'Add customer'}</button>
+      <button class="btn" onclick="tryCloseModal()">Cancel</button>
+    </div>`);
+}
+function readCustomerFormPayload(){
+  const name = document.getElementById('m-cname').value.trim();
+  if (!name) { alert('Customer name required.'); return null; }
+  const tagsRaw = document.getElementById('m-ctags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+  return {
+    name,
+    phone: document.getElementById('m-cphone').value.trim(),
+    email: document.getElementById('m-cemail').value.trim(),
+    address: document.getElementById('m-caddr').value.trim(),
+    notes: document.getElementById('m-cnotes').value.trim(),
+    birthday: document.getElementById('m-cbday').value || null,
+    tags
+  };
+}
+async function saveCustomer(){
+  const p = readCustomerFormPayload(); if (!p) return;
+  // Friendly dedupe: warn if phone matches an existing record
+  if (p.phone) {
+    const existing = findCustomerByPhone(p.phone);
+    if (existing) {
+      const proceed = confirm(`A customer with phone ${p.phone} already exists: ${existing.name}. Add anyway?`);
+      if (!proceed) return;
+    }
+  }
+  const id = S.nextCustomerId++;
+  const customer = { id, ...p, createdAt: new Date().toISOString() };
+  S.customers.push(customer);
+  logAction('add','Customer added', `${p.name}${p.phone ? ' — ' + p.phone : ''}`, 'customer', id);
+  closeModal(); renderCustomers();
+  await persistWrite('addCustomer', customer, activityLog[0]);
+}
+async function saveEditCustomer(id){
+  const c = getCustomer(id); if (!c) return;
+  const p = readCustomerFormPayload(); if (!p) return;
+  const before = { name: c.name, phone: c.phone, email: c.email, address: c.address, notes: c.notes, birthday: c.birthday, tags: (c.tags||[]).join(', ') };
+  const after  = { name: p.name, phone: p.phone, email: p.email, address: p.address, notes: p.notes, birthday: p.birthday, tags: p.tags.join(', ') };
+  const fieldChanges = diffFields(before, after);
+  Object.assign(c, p);
+  logAction('edit','Customer updated', p.name, 'customer', id, fieldChanges);
+  closeModal(); renderCustomers();
+  await persistWrite('editCustomer', { id, ...p }, activityLog[0]);
+}
+async function deleteCustomer(id){
+  const c = getCustomer(id); if (!c) return;
+  // Orders/quotations stay; their customer_id FK is `on delete set null` so the links just drop
+  S.customers = S.customers.filter(x => x.id !== id);
+  S.orders.forEach(o => { if (o.customerId === id) o.customerId = null; });
+  S.quotations.forEach(q => { if (q.customerId === id) q.customerId = null; });
+  logAction('delete','Customer deleted', c.name, 'customer', id);
+  renderCustomers();
+  await persistWrite('deleteCustomer', { id }, activityLog[0]);
+}
+
+function showCustomerDetail(id){
+  const c = getCustomer(id); if (!c) return;
+  const stats = customerStats(id);
+  const orders = S.orders.filter(o => o.customerId === id).sort((a,b) => dateKey(b.dueDate).localeCompare(dateKey(a.dueDate)));
+  const quotes = S.quotations.filter(q => q.customerId === id).sort((a,b) => (b.id || 0) - (a.id || 0));
+  const tags = (c.tags || []).length ? c.tags.map(t => `<span class="badge badge-info" style="margin-right:4px">${esc(t)}</span>`).join('') : '';
+  const orderRows = orders.length ? orders.map(o => {
+    const r = getRecipe(o.recipeId);
+    const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
+    const cakeRev = sellPerU * o.qty;
+    const addonRev = (o.addons || []).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
+    return `<div class="kv-row">
+      <span class="kv-label">
+        <a href="#" onclick="closeModal();showOrderDetail(${o.id});return false">#${o.id}</a>
+        ${r ? esc(r.name) : '?'} × ${o.qty}
+        <span style="color:var(--text-muted)">— ${fmtDate(o.dueDate)}</span>
+      </span>
+      <span class="kv-value">
+        ${fmtMoney(cakeRev + addonRev)}
+        <span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}" style="margin-left:6px">${esc(o.status)}</span>
+      </span>
+    </div>`;
+  }).join('') : `<div style="color:var(--text-muted);font-size:12px;padding:6px 0">No orders yet.</div>`;
+  const quoteRows = quotes.length ? quotes.map(q => `<div class="kv-row">
+      <span class="kv-label">
+        <a href="#" onclick="closeModal();showQuotationDetail(${q.id});return false">Quote #${q.id}</a>
+        ${q.qty}× ${getRecipe(q.recipeId)?.name || '?'}
+        <span style="color:var(--text-muted)">— ${q.validUntil ? fmtDate(q.validUntil) : 'no expiry'}</span>
+      </span>
+      <span class="badge ${q.status==='accepted'?'badge-ok':q.status==='sent'?'badge-warn':'badge-info'}">${esc(q.status)}</span>
+    </div>`).join('') : '';
+  showModal(`<div class="modal-title">${esc(c.name)}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
+      ${c.phone ? `📞 ${esc(c.phone)} &nbsp; ` : ''}
+      ${c.email ? `✉️ ${esc(c.email)} &nbsp; ` : ''}
+      ${c.address ? `<br>📍 ${esc(c.address)}` : ''}
+      ${c.birthday ? `<br>🎂 ${fmtDate(c.birthday)}` : ''}
+    </div>
+    ${tags ? `<div style="margin-bottom:12px">${tags}</div>` : ''}
+    ${c.notes ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;padding:10px 12px;background:var(--surface-soft);border-radius:6px;border-left:3px solid var(--caramel);white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
+    <div class="totals-block">
+      <div class="kv-row"><span class="kv-label">Orders</span><span class="kv-value">${stats.orderCount} (${stats.doneCount} done)</span></div>
+      <div class="kv-row"><span class="kv-label">Revenue from done orders</span><span class="kv-value" style="color:var(--success);font-weight:600">${fmtMoney(stats.revenue)}</span></div>
+      <div class="kv-row"><span class="kv-label">Last order</span><span class="kv-value">${stats.lastOrderDate ? fmtDate(stats.lastOrderDate) : '—'}</span></div>
+    </div>
+    <div class="modal-section-title">Orders</div>
+    ${orderRows}
+    ${quotes.length ? `<div class="modal-section-title">Quotations</div>${quoteRows}` : ''}
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="closeModal();showEditCustomer(${id})">Edit</button>
+      <button class="btn" onclick="closeModal();showEntityHistory('customer', ${id}, ${JSON.stringify(c.name)})">Change log</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>`, { wide: true });
 }
 
 // ─── PRICING ─────────────────────────────────────────────────────────────────
@@ -1731,6 +2000,7 @@ function renderHelp(){
         <tr><td>🍰 Recipes</td><td>Define what goes into each cake — ingredients, photo, method, batch costs, packaging</td></tr>
         <tr><td>📝 Orders</td><td>Customer orders, costing snapshot, profit per order — fully editable while pending</td></tr>
         <tr><td>📄 Quotations</td><td>Price quotes for customers; convert to an order in one click when accepted</td></tr>
+        <tr><td>👥 Customers</td><td>Address book — auto-fills phone/email/address on new orders; full order &amp; quote history per person</td></tr>
         <tr><td>💰 Pricing</td><td>"What should I charge?" exploration tool</td></tr>
         <tr><td>📜 Activity Log</td><td>Searchable audit trail of every change</td></tr>
       </tbody></table>
@@ -1832,7 +2102,16 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
         <li>If they reject or it expires: set the status accordingly. Past quotes stay searchable.</li>
       </ol>
 
-      <h3>3.15 Search the audit log</h3>
+      <h3>3.15 Customers — your address book</h3>
+      <ul>
+        <li><strong>Customers</strong> tab lists everyone you've ever served. Sortable columns: Name, Phone, Email, Orders, Total spent, Last order.</li>
+        <li>Click <strong>View</strong> on any row to see contact details, notes, tags, birthday, all their orders and quotations in one place.</li>
+        <li><strong>Auto-creation:</strong> when you place an order, just start typing the customer's name. If they exist already (matched by name or phone), their phone/email/address auto-fill and the order links to that customer. If they're new, the system creates a customer record from what you typed on save.</li>
+        <li>You can also add customers manually from the Customers tab (<strong>+ Add customer</strong>) — useful for setting up notes/birthday/tags before the first order.</li>
+        <li>Deleting a customer just clears the FK link on past orders — the orders themselves stay intact.</li>
+      </ul>
+
+      <h3>3.16 Search the audit log</h3>
       <p><strong>Activity Log</strong> tab. Search box filters by keyword. Chip filters: All / Ingredients / Recipes / Orders / Trips. Each edit shows old → new in red/green.</p>
 
       <h2>4. The "Discard unsaved changes?" prompt</h2>
@@ -2576,10 +2855,12 @@ function showOrderForm(o, mode){
   const startAddons = o && Array.isArray(o.addons) ? o.addons : [];
 
   showModal(`<div class="modal-title">${mode === 'Edit' ? 'Edit Order #' + o.id : 'New Order'}</div>
-    <div class="modal-section-title">Customer</div>
+    <div class="modal-section-title">Customer <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— start typing a name; the rest auto-fills for returning customers</span></div>
+    <input type="hidden" id="m-ocustid" value="${o?.customerId || ''}">
+    <datalist id="customer-list">${S.customers.map(c => `<option value="${esc(c.name)}">${esc(c.phone || c.email || '')}</option>`).join('')}</datalist>
     <div class="form-row">
-      <div class="form-group"><label>Name</label><input id="m-ocust" value="${esc(o?.customer || '')}" placeholder="Customer name"></div>
-      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(o?.customerPhone || '')}" placeholder="+65 ..."></div>
+      <div class="form-group"><label>Name</label><input id="m-ocust" list="customer-list" autocomplete="off" value="${esc(o?.customer || '')}" placeholder="Customer name" oninput="onCustomerNameChanged()"></div>
+      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(o?.customerPhone || '')}" placeholder="+65 ..." oninput="onCustomerPhoneChanged()"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email" value="${esc(o?.customerEmail || '')}"></div>
@@ -2777,11 +3058,14 @@ function readOrderFormPayload(){
   const snap = buildOrderSnapshot(r, qty);
   const packagingTotal = packaging.reduce((s,p)=>s+Number(p.price||0),0) * qty;
   const cakeCost = snap.ingredientCost + labour + electricity + overhead + packagingTotal;
+  const cidRaw = document.getElementById('m-ocustid')?.value;
+  const customerId = cidRaw ? parseInt(cidRaw) : null;
   return {
     customer,
     customerPhone:   document.getElementById('m-ophone').value.trim(),
     customerEmail:   document.getElementById('m-oemail').value.trim(),
     customerAddress: document.getElementById('m-oaddr').value.trim(),
+    customerId,
     recipeId, qty,
     note: document.getElementById('m-onote').value,
     dueDate: document.getElementById('m-odate').value,
@@ -2798,8 +3082,70 @@ function readOrderFormPayload(){
     recipe: r  // ephemeral; for logging only — strip before persist
   };
 }
+
+// Customer typeahead handlers — wired to oninput on the order/quotation form
+function onCustomerNameChanged(){
+  const nameEl = document.getElementById('m-ocust');
+  const cidEl  = document.getElementById('m-ocustid');
+  if (!nameEl || !cidEl) return;
+  const name = nameEl.value.trim();
+  const match = findCustomerByName(name);
+  if (match) {
+    cidEl.value = match.id;
+    // Auto-fill empty contact fields, leave user-typed values alone
+    const phoneEl = document.getElementById('m-ophone');
+    const emailEl = document.getElementById('m-oemail');
+    const addrEl  = document.getElementById('m-oaddr');
+    if (phoneEl && !phoneEl.value.trim() && match.phone) phoneEl.value = match.phone;
+    if (emailEl && !emailEl.value.trim() && match.email) emailEl.value = match.email;
+    if (addrEl  && !addrEl.value.trim()  && match.address) addrEl.value = match.address;
+  } else {
+    // Typed name doesn't match an existing customer → clear the linked id so save creates a new one
+    cidEl.value = '';
+  }
+}
+function onCustomerPhoneChanged(){
+  const phoneEl = document.getElementById('m-ophone');
+  const cidEl   = document.getElementById('m-ocustid');
+  if (!phoneEl || !cidEl) return;
+  const match = findCustomerByPhone(phoneEl.value);
+  if (match) {
+    cidEl.value = match.id;
+    const nameEl  = document.getElementById('m-ocust');
+    const emailEl = document.getElementById('m-oemail');
+    const addrEl  = document.getElementById('m-oaddr');
+    if (nameEl  && !nameEl.value.trim())  nameEl.value  = match.name;
+    if (emailEl && !emailEl.value.trim() && match.email) emailEl.value = match.email;
+    if (addrEl  && !addrEl.value.trim()  && match.address) addrEl.value = match.address;
+  }
+}
+// Resolve a customer id for an order/quote save: pick the linked id if present,
+// else find by phone, then by name, else create a fresh customer.
+async function resolveCustomerForPayload(p){
+  if (p.customerId) return p.customerId;
+  if (!p.customer) return null;
+  const byPhone = p.customerPhone ? findCustomerByPhone(p.customerPhone) : null;
+  if (byPhone) return byPhone.id;
+  const byName = findCustomerByName(p.customer);
+  if (byName) return byName.id;
+  // Create new
+  const id = S.nextCustomerId++;
+  const cust = {
+    id, name: p.customer,
+    phone: p.customerPhone || '',
+    email: p.customerEmail || '',
+    address: p.customerAddress || '',
+    notes: '', birthday: null, tags: [],
+    createdAt: new Date().toISOString()
+  };
+  S.customers.push(cust);
+  logAction('add','Customer auto-created from order', `${cust.name}${cust.phone?' — '+cust.phone:''}`,'customer',id);
+  await persistWrite('addCustomer', cust, activityLog[0]);
+  return id;
+}
 async function saveOrder(){
   const p = readOrderFormPayload(); if (!p) return;
+  p.customerId = await resolveCustomerForPayload(p);
   const id = S.nextOrderId++;
   const { recipe, ...orderRest } = p;
   const order = { id, status: 'pending', completedDate: '', ...orderRest };
@@ -2818,6 +3164,7 @@ async function saveEditOrder(id){
     return;
   }
   const p = readOrderFormPayload(); if (!p) return;
+  p.customerId = await resolveCustomerForPayload(p);
   const { recipe, ...orderRest } = p;
   // Capture before/after for audit
   const before = {
@@ -2919,6 +3266,7 @@ function showOrderDetail(id){
       ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp; ` : ''}
       ${o.customerEmail ? `✉️ ${esc(o.customerEmail)} &nbsp; ` : ''}
       ${o.customerAddress ? `<br>📍 ${esc(o.customerAddress)}` : ''}
+      ${o.customerId ? `<br><a href="#" onclick="closeModal();showCustomerDetail(${o.customerId});return false" style="color:var(--caramel-dark)">View customer profile →</a>` : ''}
     </div>
     <div class="modal-section-title">Order details</div>
     <div class="kv-row"><span class="kv-label">Recipe</span><span class="kv-value"><strong>${r ? esc(r.name) : '?'}</strong> × ${o.qty}</span></div>
@@ -2984,6 +3332,7 @@ async function init() {
       S.orders = result.orders || [];
       S.shoppingTrips = result.shoppingTrips || [];
       S.quotations = result.quotations || [];
+      S.customers = result.customers || [];
       S.priceHistory = result.priceHistory || {};
       activityLog.length = 0;
       (result.activityLog || []).forEach(l => activityLog.push(l));
@@ -2993,6 +3342,7 @@ async function init() {
       S.nextOrderId     = S.orders.length        ? Math.max(...S.orders.map(o=>o.id))        + 1 : 1;
       S.nextTripId      = S.shoppingTrips.length ? Math.max(...S.shoppingTrips.map(t=>t.id)) + 1 : 1;
       S.nextQuotationId = S.quotations.length    ? Math.max(...S.quotations.map(q=>q.id))    + 1 : 1;
+      S.nextCustomerId  = S.customers.length     ? Math.max(...S.customers.map(c=>c.id))     + 1 : 1;
     } else {
       const err = (result && result.error) || 'unknown error';
       showToast('Could not load data — ' + err, 'error');
