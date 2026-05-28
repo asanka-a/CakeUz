@@ -1075,12 +1075,12 @@ function renderInventory(){
       <div class="card-head"><span class="card-title">Ingredients & Stock</span><button class="btn btn-primary btn-sm" onclick="showAddIngredient()">+ Add ingredient</button></div>
       <table>
         <thead><tr>
-          ${sortableTh('inventory','name','Name','26%')}
-          ${sortableTh('inventory','stock','Stock','11%')}
-          ${sortableTh('inventory','unit','Unit','8%')}
-          ${sortableTh('inventory','price','Current price','18%')}
+          ${sortableTh('inventory','name','Name','38%')}
+          ${sortableTh('inventory','stock','Stock','12%')}
+          ${sortableTh('inventory','unit','Unit','10%')}
+          ${sortableTh('inventory','price','Current price','20%')}
           ${sortableTh('inventory','status','Status','12%')}
-          <th style="width:25%"></th>
+          <th style="width:8%"></th>
         </tr></thead>
         <tbody>${ingredients.map(i=>{
           const hist=S.priceHistory[i.id]||[];
@@ -1092,12 +1092,7 @@ function renderInventory(){
             <td style="font-weight:500">${esc(i.name)}</td><td>${i.stock}</td><td>${esc(i.unit)}</td>
             <td>${fmtMoney(i.cost)} ${chgHtml}</td>
             <td><span class="badge badge-${st}">${st==='danger'?'Critical':st==='warn'?'Low':'In stock'}</span></td>
-            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="showPriceHistory(${i.id})">Prices</button>
-              <button class="btn btn-sm" onclick="showEntityHistory('ingredient', ${i.id}, ${JSON.stringify(i.name)})">Log</button>
-              <button class="btn btn-sm" onclick="showEditIngredient(${i.id})">Edit</button>
-              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this ingredient?'))deleteIng(${i.id})">Del</button>
-            </div></td></tr>`;
+            <td><button class="btn btn-sm" onclick="showIngredientDetail(${i.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -1159,12 +1154,12 @@ function renderRecipes(){
       <div class="card-head"><span class="card-title">Recipes</span><button class="btn btn-primary btn-sm" onclick="showAddRecipe()">+ Add recipe</button></div>
       <table>
         <thead><tr>
-          ${sortableTh('recipes','name','Name','24%')}
-          ${sortableTh('recipes','yield','Yield','18%')}
+          ${sortableTh('recipes','name','Name','34%')}
+          ${sortableTh('recipes','yield','Yield','22%')}
           ${sortableTh('recipes','cost','Ing. cost','13%')}
-          ${sortableTh('recipes','sell','Sell price','12%')}
-          ${sortableTh('recipes','margin','Margin','8%')}
-          <th style="width:25%"></th>
+          ${sortableTh('recipes','sell','Sell price','13%')}
+          ${sortableTh('recipes','margin','Margin','10%')}
+          <th style="width:8%"></th>
         </tr></thead>
         <tbody>${recipes.map(r=>{
           const cost=calcIngCost(r);
@@ -1174,12 +1169,7 @@ function renderRecipes(){
             <td style="font-size:12px;white-space:normal">${esc(r.yield)}</td>
             <td>${fmtMoney(cost)}</td><td>${fmtMoney(r.sellPrice)}</td>
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${fmtPct(margin)}</span></td>
-            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="showViewRecipe(${r.id})">View</button>
-              <button class="btn btn-sm" onclick="showEditRecipe(${r.id})">Edit</button>
-              <button class="btn btn-sm" onclick="showCloneRecipe(${r.id})">Clone</button>
-              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete recipe?'))deleteRecipe(${r.id})">Del</button>
-            </div></td></tr>`;
+            <td><button class="btn btn-sm" onclick="showViewRecipe(${r.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -1233,16 +1223,16 @@ function renderOrders(){
       <div class="card-head"><span class="card-title">Orders</span><button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button></div>
       <table>
         <thead><tr>
-          ${sortableTh('orders','customer','Customer','12%')}
-          ${sortableTh('orders','phone','Phone','9%')}
-          ${sortableTh('orders','item','Item','14%')}
-          ${sortableTh('orders','qty','Qty','4%')}
-          ${sortableTh('orders','sell','Sell','9%')}
-          ${sortableTh('orders','cost','Cost','9%')}
-          ${sortableTh('orders','margin','Margin','6%')}
-          ${sortableTh('orders','due','Due','8%')}
-          ${sortableTh('orders','status','Status','7%')}
-          <th style="width:22%"></th>
+          ${sortableTh('orders','customer','Customer','16%')}
+          ${sortableTh('orders','phone','Phone','11%')}
+          ${sortableTh('orders','item','Item','18%')}
+          ${sortableTh('orders','qty','Qty','5%')}
+          ${sortableTh('orders','sell','Sell','10%')}
+          ${sortableTh('orders','cost','Cost','10%')}
+          ${sortableTh('orders','margin','Margin','7%')}
+          ${sortableTh('orders','due','Due','9%')}
+          ${sortableTh('orders','status','Status','8%')}
+          <th style="width:6%"></th>
         </tr></thead>
         <tbody>${orders.map(o => {
           const r = getRecipe(o.recipeId);
@@ -1261,13 +1251,7 @@ function renderOrders(){
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${margin}%</span></td>
             <td style="font-size:12px;${overdue?'color:var(--danger);font-weight:600':''}">${fmtDate(o.dueDate)}${overdue?' ⚠️':''}</td>
             <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span></td>
-            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button>
-              ${o.status==='pending' ? `<button class="btn btn-sm" onclick="showEditOrder(${o.id})">Edit</button>` : ''}
-              <button class="btn btn-sm" onclick="showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Log</button>
-              <button class="btn btn-sm ${o.status==='pending'?'btn-chocolate':''}" onclick="cycleStatus(${o.id})">${o.status==='pending'?'✓ Done':'Undo'}</button>
-              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete order?'))deleteOrder(${o.id})">Del</button>
-            </div></td></tr>`;
+            <td><button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -1320,15 +1304,15 @@ function renderQuotations(){
       <div class="card-head"><span class="card-title">Quotations</span><button class="btn btn-primary btn-sm" onclick="showAddQuotation()">+ New quotation</button></div>
       <table>
         <thead><tr>
-          ${sortableTh('quotations','customer','Customer','15%')}
-          ${sortableTh('quotations','item','Item','18%')}
+          ${sortableTh('quotations','customer','Customer','18%')}
+          ${sortableTh('quotations','item','Item','21%')}
           ${sortableTh('quotations','qty','Qty','5%')}
           ${sortableTh('quotations','sell','Sell','11%')}
           ${sortableTh('quotations','cost','Cost','11%')}
           ${sortableTh('quotations','margin','Margin','7%')}
-          ${sortableTh('quotations','valid','Valid until','11%')}
-          ${sortableTh('quotations','status','Status','8%')}
-          <th style="width:14%"></th>
+          ${sortableTh('quotations','valid','Valid until','12%')}
+          ${sortableTh('quotations','status','Status','9%')}
+          <th style="width:6%"></th>
         </tr></thead>
         <tbody>${sortedRows.map(({q, r, totalRevenue, totalCost, margin}) => {
           const expired = q.validUntil && dateKey(q.validUntil) < todayKey && q.status === 'sent';
@@ -1345,16 +1329,7 @@ function renderQuotations(){
             <td><span class="badge ${marginClass}">${margin}%</span></td>
             <td style="font-size:12px;${expired?'color:var(--danger);font-weight:600':''}">${q.validUntil ? fmtDate(q.validUntil) : '—'}${expired?' ⚠':''}</td>
             <td><span class="badge ${statusBadgeClass}">${esc(q.status)}</span></td>
-            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="showQuotationDetail(${q.id})">View</button>
-              ${q.status !== 'accepted' ? `<button class="btn btn-sm" onclick="showEditQuotation(${q.id})">Edit</button>` : ''}
-              ${q.status === 'accepted' && q.convertedOrderId
-                ? `<button class="btn btn-sm" onclick="switchToOrder(${q.convertedOrderId})">Open order</button>`
-                : (q.status !== 'accepted' && q.status !== 'rejected'
-                    ? `<button class="btn btn-sm btn-chocolate" onclick="convertQuotationToOrder(${q.id})">→ Order</button>`
-                    : '')}
-              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete quotation?'))deleteQuotation(${q.id})">Del</button>
-            </div></td></tr>`;
+            <td><button class="btn btn-sm" onclick="showQuotationDetail(${q.id})">View</button></td></tr>`;
         }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:1.5rem">No quotations yet. Use <strong>+ New quotation</strong> to create one.</td></tr>'}</tbody>
       </table>
     </div>`;
@@ -1686,13 +1661,13 @@ function renderCustomers(){
       <div class="card-head"><span class="card-title">Customers</span><button class="btn btn-primary btn-sm" onclick="showAddCustomer()">+ Add customer</button></div>
       <table>
         <thead><tr>
-          ${sortableTh('customers','name','Name','22%')}
-          ${sortableTh('customers','phone','Phone','14%')}
-          ${sortableTh('customers','email','Email','20%')}
+          ${sortableTh('customers','name','Name','25%')}
+          ${sortableTh('customers','phone','Phone','15%')}
+          ${sortableTh('customers','email','Email','22%')}
           ${sortableTh('customers','orders','Orders','8%')}
-          ${sortableTh('customers','spent','Total spent','13%')}
+          ${sortableTh('customers','spent','Total spent','12%')}
           ${sortableTh('customers','last','Last order','12%')}
-          <th style="width:11%"></th>
+          <th style="width:6%"></th>
         </tr></thead>
         <tbody>${sorted.map(({c, stats}) => `<tr>
           <td style="font-weight:500">${esc(c.name)}${(c.tags||[]).length ? '<br>' + c.tags.map(t => `<span class="badge badge-info" style="margin-right:3px">${esc(t)}</span>`).join('') : ''}</td>
@@ -1701,11 +1676,7 @@ function renderCustomers(){
           <td>${stats.orderCount}${stats.doneCount !== stats.orderCount ? `<span style="font-size:11px;color:var(--text-muted)"> (${stats.doneCount} done)</span>` : ''}</td>
           <td style="font-weight:500">${fmtMoney(stats.revenue)}</td>
           <td style="font-size:12px">${stats.lastOrderDate ? fmtDate(stats.lastOrderDate) : '—'}</td>
-          <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-            <button class="btn btn-sm" onclick="showCustomerDetail(${c.id})">View</button>
-            <button class="btn btn-sm" onclick="showEditCustomer(${c.id})">Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this customer? Their past orders stay; just the link is cleared.'))deleteCustomer(${c.id})">Del</button>
-          </div></td>
+          <td><button class="btn btn-sm" onclick="showCustomerDetail(${c.id})">View</button></td>
         </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.5rem">No customers yet. They'll be created automatically when you place orders.</td></tr>`}</tbody>
       </table>
     </div>`;
@@ -2307,6 +2278,64 @@ function showPriceHistory(id){
     const gridColor = (cs.getPropertyValue('--border-light')||'').trim() || '#EBF1F6';
     chartInstance=new Chart(ctx,{type:'line',data:{labels:hist.map(h=>fmtDate(h.date)),datasets:[{label:CURRENCY,data:hist.map(h=>h.cost),borderColor:'#F5A623',backgroundColor:'rgba(245,166,35,0.12)',tension:0.35,pointRadius:5,pointBackgroundColor:'#F5A623',borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,ticks:{callback:v=>CURRENCY+' '+v.toFixed(2),font:{size:10},color:tickColor},grid:{color:gridColor}},x:{ticks:{font:{size:10},color:tickColor},grid:{color:gridColor}}}}});
   },80);
+}
+
+// Unified ingredient detail — info card + inline price chart + recent history + Edit/Log/Delete buttons.
+// This is what the View button on each inventory row opens.
+function showIngredientDetail(id){
+  const i = getIng(id);
+  if (!i) return;
+  const hist = S.priceHistory[id] || [];
+  const stockClass = i.stock < 0.5 ? 'danger' : i.stock < 1 ? 'warn' : 'ok';
+  const stockLabel = stockClass === 'danger' ? 'Critical' : stockClass === 'warn' ? 'Low' : 'In stock';
+  // Recent recipes using this ingredient (top 5)
+  const recipesUsing = S.recipes.filter(r => (r.ingredients||[]).some(ri => ri.ingId === id)).slice(0, 8);
+  showModal(`<div class="modal-title">${esc(i.name)}</div>
+    <div class="totals-block">
+      <div class="kv-row"><span class="kv-label">Storage unit</span><span class="kv-value">${esc(i.unit)}</span></div>
+      <div class="kv-row"><span class="kv-label">Stock</span><span class="kv-value">${i.stock} ${esc(i.unit)} <span class="badge badge-${stockClass}" style="margin-left:6px">${stockLabel}</span></span></div>
+      <div class="kv-row" style="font-weight:600"><span>Current cost</span><span>${fmtMoney(i.cost)} / ${esc(i.unit)}</span></div>
+    </div>
+    ${hist.length > 1 ? `
+      <div class="modal-section-title">Price trend</div>
+      <canvas id="ph-chart" height="120" style="margin-bottom:8px"></canvas>` : ''}
+    ${hist.length ? `
+      <div class="modal-section-title">Price history</div>
+      <div style="max-height:200px;overflow-y:auto">
+        ${hist.slice().reverse().map((h,idx,arr)=>{
+          const prev = arr[idx+1];
+          const chg = prev ? ((h.cost - prev.cost) / prev.cost * 100) : null;
+          return `<div class="history-row">
+            <span>${fmtDate(h.date)}</span>
+            <span style="font-weight:600">${fmtMoney(h.cost)}</span>
+            ${chg !== null ? `<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>` : '<span style="color:var(--text-muted);font-size:11px">baseline</span>'}
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+    ${recipesUsing.length ? `
+      <div class="modal-section-title">Used in recipes</div>
+      ${recipesUsing.map(r => `<div class="kv-row"><span class="kv-label"><a href="#" onclick="closeModal();showViewRecipe(${r.id});return false">${esc(r.name)}</a></span></div>`).join('')}` : ''}
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="closeModal();showEditIngredient(${id})">Edit</button>
+      <button class="btn" onclick="closeModal();showEntityHistory('ingredient', ${id}, ${JSON.stringify(i.name)})">Change log</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this ingredient? Recipes that use it will break — fix them first.')){closeModal();deleteIng(${id})}">Delete</button>
+    </div>`, { wide: true });
+  // Draw the price chart after the modal renders
+  if (hist.length > 1) {
+    setTimeout(() => {
+      const ctx = document.getElementById('ph-chart'); if (!ctx) return;
+      if (chartInstance) chartInstance.destroy();
+      const cs = getComputedStyle(document.documentElement);
+      const tickColor = (cs.getPropertyValue('--text-secondary')||'').trim() || '#4A6076';
+      const gridColor = (cs.getPropertyValue('--border-light')||'').trim() || '#EBF1F6';
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: hist.map(h => fmtDate(h.date)), datasets: [{ label: CURRENCY, data: hist.map(h => h.cost), borderColor: '#F5A623', backgroundColor: 'rgba(245,166,35,0.12)', tension: 0.35, pointRadius: 5, pointBackgroundColor: '#F5A623', borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, ticks: { callback: v => CURRENCY + ' ' + v.toFixed(2), font: { size: 10 }, color: tickColor }, grid: { color: gridColor } }, x: { ticks: { font: { size: 10 }, color: tickColor }, grid: { color: gridColor } } } }
+      });
+    }, 80);
+  }
 }
 
 // Shopping
@@ -3348,6 +3377,7 @@ function showOrderDetail(id){
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
+      <button class="btn ${o.status==='pending'?'btn-chocolate':''}" onclick="closeModal();cycleStatus(${o.id})">${o.status==='pending'?'✓ Mark Done':'Undo (back to pending)'}</button>
       <button class="btn" onclick="closeModal();showCloneOrder(${o.id})">Clone</button>
       <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
