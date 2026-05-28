@@ -204,6 +204,8 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 /* Theme toggle button */
 .theme-btn{background:none;border:1px solid var(--border);border-radius:18px;padding:6px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:all 0.15s}
 .theme-btn:hover{background:var(--surface-soft);color:var(--text-primary)}
+.sortable-th{cursor:pointer;user-select:none;transition:color 0.15s}
+.sortable-th:hover{color:var(--caramel-dark)}
 </style>
 </head>
 <body>
@@ -761,6 +763,46 @@ function cycleTheme(){
 // On boot, sync the button label to whatever was set by the inline head script.
 applyTheme(localStorage.getItem('cakeuz-theme') || 'auto');
 
+// ─── TABLE SORTING ──────────────────────────────────────────────────────────
+// One sort state per table. col:null = use the table's natural ordering
+// (e.g. orders default of "pending first by due date").
+const _sortState = {
+  inventory: { col: null, dir: 'asc' },
+  recipes:   { col: null, dir: 'asc' },
+  orders:    { col: null, dir: 'asc' }
+};
+function setSort(tab, col){
+  const s = _sortState[tab];
+  if (s.col === col) {
+    // Same column clicked — cycle asc → desc → off
+    if (s.dir === 'asc') s.dir = 'desc';
+    else { s.col = null; s.dir = 'asc'; }
+  } else {
+    s.col = col;
+    s.dir = 'asc';
+  }
+  ({ inventory: renderInventory, recipes: renderRecipes, orders: renderOrders })[tab]();
+}
+function sortRows(rows, col, dir, getter){
+  if (!col) return rows;
+  const sign = dir === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const va = getter(a, col);
+    const vb = getter(b, col);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === 'number' && typeof vb === 'number') return sign * (va - vb);
+    return sign * String(va).localeCompare(String(vb), undefined, { numeric: true });
+  });
+}
+// Sortable <th> with click handler + arrow marker. extra is any extra style.
+function sortableTh(tab, col, label, width, extra){
+  const s = _sortState[tab];
+  const arrow = s.col === col ? `<span style="margin-left:4px;color:var(--caramel-dark)">${s.dir === 'asc' ? '▲' : '▼'}</span>` : '';
+  return `<th class="sortable-th" style="width:${width};${extra||''}" onclick="setSort('${tab}','${col}')">${esc(label)}${arrow}</th>`;
+}
+
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function renderDashboard(){
   const done=S.orders.filter(o=>o.status==='done');
@@ -819,12 +861,32 @@ function renderDashboard(){
 
 // ─── INVENTORY ───────────────────────────────────────────────────────────────
 function renderInventory(){
+  // status severity for sorting: 2=critical, 1=low, 0=ok
+  const statusSev = i => i.stock < 0.5 ? 2 : i.stock < 1 ? 1 : 0;
+  const ss = _sortState.inventory;
+  const ingredients = sortRows(S.ingredients, ss.col, ss.dir, (i, col) => {
+    switch (col) {
+      case 'name':   return i.name || '';
+      case 'stock':  return Number(i.stock) || 0;
+      case 'unit':   return i.unit || '';
+      case 'price':  return Number(i.cost) || 0;
+      case 'status': return statusSev(i);
+      default: return null;
+    }
+  });
   document.getElementById('tab-inventory').innerHTML=`
     <div class="card">
       <div class="card-head"><span class="card-title">Ingredients & Stock</span><button class="btn btn-primary btn-sm" onclick="showAddIngredient()">+ Add ingredient</button></div>
       <table>
-        <thead><tr><th style="width:26%">Name</th><th style="width:11%">Stock</th><th style="width:8%">Unit</th><th style="width:18%">Current price</th><th style="width:12%">Status</th><th style="width:25%"></th></tr></thead>
-        <tbody>${S.ingredients.map(i=>{
+        <thead><tr>
+          ${sortableTh('inventory','name','Name','26%')}
+          ${sortableTh('inventory','stock','Stock','11%')}
+          ${sortableTh('inventory','unit','Unit','8%')}
+          ${sortableTh('inventory','price','Current price','18%')}
+          ${sortableTh('inventory','status','Status','12%')}
+          <th style="width:25%"></th>
+        </tr></thead>
+        <tbody>${ingredients.map(i=>{
           const hist=S.priceHistory[i.id]||[];
           const prev=hist.length>1?hist[hist.length-2]:null;
           const chg=prev?((i.cost-prev.cost)/prev.cost*100):0;
@@ -882,12 +944,33 @@ function renderShopping(){
 
 // ─── RECIPES ─────────────────────────────────────────────────────────────────
 function renderRecipes(){
+  const ss = _sortState.recipes;
+  const recipes = sortRows(S.recipes, ss.col, ss.dir, (r, col) => {
+    switch (col) {
+      case 'name':   return r.name || '';
+      case 'yield':  return r.yield || '';
+      case 'cost':   return calcIngCost(r);
+      case 'sell':   return Number(r.sellPrice) || 0;
+      case 'margin': {
+        const c = calcIngCost(r);
+        return r.sellPrice > 0 ? ((r.sellPrice - c) / r.sellPrice * 100) : 0;
+      }
+      default: return null;
+    }
+  });
   document.getElementById('tab-recipes').innerHTML=`
     <div class="card">
       <div class="card-head"><span class="card-title">Recipes</span><button class="btn btn-primary btn-sm" onclick="showAddRecipe()">+ Add recipe</button></div>
       <table>
-        <thead><tr><th style="width:24%">Name</th><th style="width:18%">Yield</th><th style="width:13%">Ing. cost</th><th style="width:12%">Sell price</th><th style="width:8%">Margin</th><th style="width:25%"></th></tr></thead>
-        <tbody>${S.recipes.map(r=>{
+        <thead><tr>
+          ${sortableTh('recipes','name','Name','24%')}
+          ${sortableTh('recipes','yield','Yield','18%')}
+          ${sortableTh('recipes','cost','Ing. cost','13%')}
+          ${sortableTh('recipes','sell','Sell price','12%')}
+          ${sortableTh('recipes','margin','Margin','8%')}
+          <th style="width:25%"></th>
+        </tr></thead>
+        <tbody>${recipes.map(r=>{
           const cost=calcIngCost(r);
           const margin=r.sellPrice>0?((r.sellPrice-cost)/r.sellPrice*100):0;
           return `<tr>
@@ -908,12 +991,36 @@ function renderRecipes(){
 
 // ─── ORDERS ──────────────────────────────────────────────────────────────────
 function renderOrders(){
-  // Sort: pending first (by dueDate asc), then done (by completedDate desc)
-  const orders = [...S.orders].sort((a,b) => {
-    if (a.status !== b.status) return a.status === 'pending' ? -1 : 1;
-    if (a.status === 'pending') return dateKey(a.dueDate).localeCompare(dateKey(b.dueDate));
-    return dateKey(b.completedDate||b.dueDate).localeCompare(dateKey(a.completedDate||a.dueDate));
-  });
+  const ss = _sortState.orders;
+  let orders;
+  if (ss.col) {
+    // User picked a column — sort by it
+    orders = sortRows(S.orders, ss.col, ss.dir, (o, col) => {
+      const r = getRecipe(o.recipeId);
+      const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
+      const sellTotal = sellPerU * o.qty;
+      const cost = parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
+      switch (col) {
+        case 'customer': return o.customer || '';
+        case 'phone':    return o.customerPhone || '';
+        case 'item':     return r ? r.name : '';
+        case 'qty':      return Number(o.qty) || 0;
+        case 'sell':     return sellTotal;
+        case 'cost':     return cost;
+        case 'margin':   return sellTotal > 0 ? ((sellTotal - cost) / sellTotal * 100) : 0;
+        case 'due':      return dateKey(o.dueDate);
+        case 'status':   return o.status || '';
+        default: return null;
+      }
+    });
+  } else {
+    // Default: pending first (by dueDate asc), then done (by completedDate desc)
+    orders = [...S.orders].sort((a,b) => {
+      if (a.status !== b.status) return a.status === 'pending' ? -1 : 1;
+      if (a.status === 'pending') return dateKey(a.dueDate).localeCompare(dateKey(b.dueDate));
+      return dateKey(b.completedDate||b.dueDate).localeCompare(dateKey(a.completedDate||a.dueDate));
+    });
+  }
   const todayKey = today();
   const totalRevenueDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0)) * o.qty, 0);
   // Cake cost (NOT including transport — that's an invoiced pass-through)
@@ -929,7 +1036,18 @@ function renderOrders(){
     <div class="card">
       <div class="card-head"><span class="card-title">Orders</span><button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button></div>
       <table>
-        <thead><tr><th style="width:12%">Customer</th><th style="width:9%">Phone</th><th style="width:14%">Item</th><th style="width:4%">Qty</th><th style="width:9%">Sell</th><th style="width:9%">Cost</th><th style="width:6%">Margin</th><th style="width:8%">Due</th><th style="width:7%">Status</th><th style="width:22%"></th></tr></thead>
+        <thead><tr>
+          ${sortableTh('orders','customer','Customer','12%')}
+          ${sortableTh('orders','phone','Phone','9%')}
+          ${sortableTh('orders','item','Item','14%')}
+          ${sortableTh('orders','qty','Qty','4%')}
+          ${sortableTh('orders','sell','Sell','9%')}
+          ${sortableTh('orders','cost','Cost','9%')}
+          ${sortableTh('orders','margin','Margin','6%')}
+          ${sortableTh('orders','due','Due','8%')}
+          ${sortableTh('orders','status','Status','7%')}
+          <th style="width:22%"></th>
+        </tr></thead>
         <tbody>${orders.map(o => {
           const r = getRecipe(o.recipeId);
           const overdue = o.status === 'pending' && dateKey(o.dueDate) < todayKey;
