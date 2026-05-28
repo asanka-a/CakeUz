@@ -220,6 +220,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
     <button class="nav-btn" onclick="switchTab('shopping',this)"><span class="nav-icon">🛒</span> Shopping</button>
     <button class="nav-btn" onclick="switchTab('recipes',this)"><span class="nav-icon">🍰</span> Recipes</button>
     <button class="nav-btn" onclick="switchTab('orders',this)"><span class="nav-icon">📝</span> Orders</button>
+    <button class="nav-btn" onclick="switchTab('quotations',this)"><span class="nav-icon">📄</span> Quotations</button>
     <button class="nav-btn" onclick="switchTab('pricing',this)"><span class="nav-icon">💰</span> Pricing</button>
     <button class="nav-btn" onclick="switchTab('activitylog',this)"><span class="nav-icon">📜</span> Activity Log</button>
     <button class="nav-btn" onclick="switchTab('help',this)"><span class="nav-icon">📖</span> Help</button>
@@ -236,6 +237,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
     <div id="tab-shopping" class="section"></div>
     <div id="tab-recipes" class="section"></div>
     <div id="tab-orders" class="section"></div>
+    <div id="tab-quotations" class="section"></div>
     <div id="tab-pricing" class="section"></div>
     <div id="tab-activitylog" class="section"></div>
     <div id="tab-help" class="section"></div>
@@ -282,7 +284,7 @@ async function dbPost(action, data, log) {
 // ── LOAD ──────────────────────────────────────────────────────
 async function loadAllFromSupabase() {
   try {
-    const [ing, ph, rec, ri, ord, trip, si, log] = await Promise.all([
+    const [ing, ph, rec, ri, ord, trip, si, log, quo] = await Promise.all([
       sb.from('ingredients').select('*').order('id'),
       sb.from('price_history').select('*'),
       sb.from('recipes').select('*').order('id'),
@@ -290,9 +292,10 @@ async function loadAllFromSupabase() {
       sb.from('orders').select('*').order('id'),
       sb.from('shopping_trips').select('*').order('id'),
       sb.from('shopping_items').select('*'),
-      sb.from('activity_log').select('*').order('time', { ascending: false }).limit(1000)
+      sb.from('activity_log').select('*').order('time', { ascending: false }).limit(1000),
+      sb.from('quotations').select('*').order('id', { ascending: false })
     ]);
-    for (const r of [ing, ph, rec, ri, ord, trip, si, log]) {
+    for (const r of [ing, ph, rec, ri, ord, trip, si, log, quo]) {
       if (r.error) throw r.error;
     }
 
@@ -311,6 +314,11 @@ async function loadAllFromSupabase() {
       const ringredients = ri.data
         .filter(x => x.recipe_id === r.id)
         .map(x => ({ ingId: x.ing_id, qty: Number(x.qty), unit: x.unit || '' }));
+      // Packaging: prefer the new jsonb list; fall back to the legacy single packing_per_unit
+      let packaging = Array.isArray(r.packaging) ? r.packaging : [];
+      if (packaging.length === 0 && Number(r.default_packing_per_unit) > 0) {
+        packaging = [{ item: 'Packaging', price: Number(r.default_packing_per_unit) }];
+      }
       return {
         id: r.id,
         name: r.name,
@@ -320,31 +328,72 @@ async function loadAllFromSupabase() {
         defaultLabour: Number(r.default_labour ?? 20),
         defaultElectricity: Number(r.default_electricity ?? 5),
         defaultPackingPerUnit: Number(r.default_packing_per_unit ?? 2),
+        defaultOverhead: Number(r.default_overhead ?? 5),
+        photoUrl: r.photo_url || '',
+        description: r.description || '',
+        steps: Array.isArray(r.steps) ? r.steps : [],
+        packaging,
         ingredients: ringredients
       };
     });
 
-    const orders = ord.data.map(o => ({
-      id: o.id,
-      customer: o.customer,
-      customerPhone: o.customer_phone || '',
-      customerEmail: o.customer_email || '',
-      customerAddress: o.customer_address || '',
-      recipeId: o.recipe_id,
-      qty: o.qty,
-      note: o.note || '',
-      dueDate: o.due_date,
-      status: o.status,
-      sellPriceSnapshot: Number(o.sell_price_per_unit || 0),  // alias for the old field name
-      sellPricePerUnit: Number(o.sell_price_per_unit || 0),
-      labour: o.labour !== null ? Number(o.labour) : null,
-      electricity: o.electricity !== null ? Number(o.electricity) : null,
-      packingPerUnit: o.packing_per_unit !== null ? Number(o.packing_per_unit) : null,
-      transportCost: Number(o.transport_cost || 0),
-      ingredientCost: Number(o.ingredient_cost || 0),
-      cakeCost: Number(o.cake_cost || 0),
-      ingredientSnapshot: Array.isArray(o.ingredient_snapshot) ? o.ingredient_snapshot : [],
-      completedDate: o.completed_date || ''
+    const orders = ord.data.map(o => {
+      // Packaging snapshot: new jsonb list; for legacy orders fall back to a single line built from packing_per_unit
+      let packaging = Array.isArray(o.packaging) ? o.packaging : [];
+      if (packaging.length === 0 && Number(o.packing_per_unit) > 0) {
+        packaging = [{ item: 'Packaging', price: Number(o.packing_per_unit) }];
+      }
+      return {
+        id: o.id,
+        customer: o.customer,
+        customerPhone: o.customer_phone || '',
+        customerEmail: o.customer_email || '',
+        customerAddress: o.customer_address || '',
+        recipeId: o.recipe_id,
+        qty: o.qty,
+        note: o.note || '',
+        dueDate: o.due_date,
+        status: o.status,
+        sellPriceSnapshot: Number(o.sell_price_per_unit || 0),
+        sellPricePerUnit: Number(o.sell_price_per_unit || 0),
+        labour:      o.labour      !== null ? Number(o.labour)      : null,
+        electricity: o.electricity !== null ? Number(o.electricity) : null,
+        overhead:    o.overhead    !== null ? Number(o.overhead)    : 0,
+        packingPerUnit: o.packing_per_unit !== null ? Number(o.packing_per_unit) : null,
+        packaging,
+        addons:      Array.isArray(o.addons) ? o.addons : [],
+        transportCost: Number(o.transport_cost || 0),
+        ingredientCost: Number(o.ingredient_cost || 0),
+        cakeCost: Number(o.cake_cost || 0),
+        ingredientSnapshot: Array.isArray(o.ingredient_snapshot) ? o.ingredient_snapshot : [],
+        completedDate: o.completed_date || ''
+      };
+    });
+
+    // Quotations — same shape as orders + status lifecycle + valid_until
+    const quotations = (quo.data || []).map(q => ({
+      id: q.id,
+      customer: q.customer,
+      customerPhone: q.customer_phone || '',
+      customerEmail: q.customer_email || '',
+      customerAddress: q.customer_address || '',
+      recipeId: q.recipe_id,
+      qty: q.qty || 1,
+      note: q.note || '',
+      validUntil: q.valid_until,
+      status: q.status || 'draft',
+      sellPricePerUnit: Number(q.sell_price_per_unit || 0),
+      labour:      q.labour      !== null ? Number(q.labour)      : null,
+      electricity: q.electricity !== null ? Number(q.electricity) : null,
+      overhead:    q.overhead    !== null ? Number(q.overhead)    : 0,
+      packaging:   Array.isArray(q.packaging) ? q.packaging : [],
+      addons:      Array.isArray(q.addons) ? q.addons : [],
+      transportCost: Number(q.transport_cost || 0),
+      ingredientCost: Number(q.ingredient_cost || 0),
+      cakeCost: Number(q.cake_cost || 0),
+      ingredientSnapshot: Array.isArray(q.ingredient_snapshot) ? q.ingredient_snapshot : [],
+      convertedOrderId: q.converted_order_id || null,
+      createdAt: q.created_at
     }));
 
     const shoppingTrips = trip.data.map(t => {
@@ -369,7 +418,7 @@ async function loadAllFromSupabase() {
       fieldChanges: l.field_changes || null
     }));
 
-    return { ok: true, ingredients, priceHistory, recipes, orders, shoppingTrips, activityLog };
+    return { ok: true, ingredients, priceHistory, recipes, orders, shoppingTrips, activityLog, quotations };
   } catch (e) {
     console.error('Supabase load error:', e);
     return { ok: false, error: e.message || String(e) };
@@ -386,12 +435,18 @@ async function dispatchWrite(action, d) {
     case 'editRecipe':         return sbEditRecipe(d);
     case 'deleteRecipe':       return sbDeleteRecipe(d);
     case 'addOrder':           return sbAddOrder(d);
+    case 'editOrder':          return sbEditOrder(d);
     case 'updateOrderStatus':  return sbUpdateOrderStatus(d);
     case 'deleteOrder':        return sbDeleteOrder(d);
     case 'addShoppingTrip':    return sbAddShoppingTrip(d);
     case 'deleteShoppingTrip': return sbDeleteShoppingTrip(d);
     case 'addLog':             return sbAddLog(d);
     case 'clearLog':           return sbClearLog();
+    case 'addQuotation':       return sbAddQuotation(d);
+    case 'editQuotation':      return sbEditQuotation(d);
+    case 'deleteQuotation':    return sbDeleteQuotation(d);
+    case 'setQuotationStatus': return sbSetQuotationStatus(d);
+    case 'convertQuotation':   return sbConvertQuotation(d);
     default: return { ok: false, error: 'Unknown action: ' + action };
   }
 }
@@ -423,15 +478,23 @@ async function sbDeleteIngredient(d) {
 }
 
 // ── RECIPES ───────────────────────────────────────────────────
-async function sbAddRecipe(d) {
-  const row = {
+function recipeRowFromForm(d) {
+  return {
     name: d.name,
     yield: d.yield || '',
     suggested_sell_price: d.sellPrice ?? d.suggestedSellPrice ?? 0,
     default_labour: d.defaultLabour ?? 20,
     default_electricity: d.defaultElectricity ?? 5,
-    default_packing_per_unit: d.defaultPackingPerUnit ?? 2
+    default_packing_per_unit: d.defaultPackingPerUnit ?? 0,  // legacy; new payloads use `packaging`
+    default_overhead: d.defaultOverhead ?? 5,
+    photo_url: d.photoUrl || null,
+    description: d.description || null,
+    steps: Array.isArray(d.steps) ? d.steps : [],
+    packaging: Array.isArray(d.packaging) ? d.packaging : []
   };
+}
+async function sbAddRecipe(d) {
+  const row = recipeRowFromForm(d);
   if (d.id) row.id = d.id;
   const { data, error } = await sb.from('recipes').insert(row).select().single();
   if (error) return { ok: false, error: error.message };
@@ -445,14 +508,7 @@ async function sbAddRecipe(d) {
   return { ok: true, id: data.id };
 }
 async function sbEditRecipe(d) {
-  const { error } = await sb.from('recipes').update({
-    name: d.name,
-    yield: d.yield || '',
-    suggested_sell_price: d.sellPrice ?? d.suggestedSellPrice ?? 0,
-    default_labour: d.defaultLabour ?? 20,
-    default_electricity: d.defaultElectricity ?? 5,
-    default_packing_per_unit: d.defaultPackingPerUnit ?? 2
-  }).eq('id', d.id);
+  const { error } = await sb.from('recipes').update(recipeRowFromForm(d)).eq('id', d.id);
   if (error) return { ok: false, error: error.message };
   await sb.from('recipe_ingredients').delete().eq('recipe_id', d.id);
   const riRows = (d.ingredients || []).map(ri => ({
@@ -464,14 +520,27 @@ async function sbEditRecipe(d) {
   }
   return { ok: true };
 }
+
+// Upload a recipe photo file to Supabase Storage. Returns the public URL or null on error.
+async function uploadRecipePhoto(file, recipeIdHint) {
+  if (!file) return null;
+  const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : 'jpg';
+  const path = `${recipeIdHint || 'new'}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('recipe-photos').upload(path, file, {
+    cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg'
+  });
+  if (error) { showToast('Photo upload failed: ' + error.message, 'error'); return null; }
+  const { data } = sb.storage.from('recipe-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
 async function sbDeleteRecipe(d) {
   const { error } = await sb.from('recipes').delete().eq('id', d.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 // ── ORDERS ────────────────────────────────────────────────────
-async function sbAddOrder(d) {
-  const row = {
+function orderRowFromForm(d) {
+  return {
     customer: d.customer,
     customer_phone: d.customerPhone || '',
     customer_email: d.customerEmail || '',
@@ -482,18 +551,32 @@ async function sbAddOrder(d) {
     due_date: d.dueDate || null,
     status: d.status || 'pending',
     sell_price_per_unit: d.sellPricePerUnit ?? d.sellPriceSnapshot ?? 0,
-    labour: d.labour ?? null,
+    labour:      d.labour      ?? null,
     electricity: d.electricity ?? null,
-    packing_per_unit: d.packingPerUnit ?? null,
+    overhead:    d.overhead    ?? 0,
+    packing_per_unit: d.packingPerUnit ?? null,  // legacy field; safe to leave null when new orders use `packaging`
+    packaging:   Array.isArray(d.packaging) ? d.packaging : [],
+    addons:      Array.isArray(d.addons) ? d.addons : [],
     transport_cost: d.transportCost ?? 0,
     ingredient_cost: d.ingredientCost ?? 0,
     cake_cost: d.cakeCost ?? (d.ingredientCost ?? 0),
     ingredient_snapshot: d.ingredientSnapshot || []
   };
+}
+async function sbAddOrder(d) {
+  const row = orderRowFromForm(d);
   if (d.id) row.id = d.id;
   const { data, error } = await sb.from('orders').insert(row).select().single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: data.id };
+}
+async function sbEditOrder(d) {
+  const row = orderRowFromForm(d);
+  // status & completed_date are managed separately via updateOrderStatus, don't clobber
+  delete row.status;
+  const { error } = await sb.from('orders').update(row).eq('id', d.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 async function sbUpdateOrderStatus(d) {
   const updates = { status: d.status };
@@ -514,6 +597,65 @@ async function sbUpdateOrderStatus(d) {
 async function sbDeleteOrder(d) {
   const { error } = await sb.from('orders').delete().eq('id', d.id);
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// ── QUOTATIONS ────────────────────────────────────────────────
+function quotationRowFromForm(d) {
+  return {
+    customer: d.customer,
+    customer_phone: d.customerPhone || '',
+    customer_email: d.customerEmail || '',
+    customer_address: d.customerAddress || '',
+    recipe_id: d.recipeId,
+    qty: d.qty || 1,
+    note: d.note || '',
+    valid_until: d.validUntil || null,
+    status: d.status || 'draft',
+    sell_price_per_unit: d.sellPricePerUnit ?? 0,
+    labour:      d.labour      ?? null,
+    electricity: d.electricity ?? null,
+    overhead:    d.overhead    ?? 0,
+    packaging:   Array.isArray(d.packaging) ? d.packaging : [],
+    addons:      Array.isArray(d.addons) ? d.addons : [],
+    transport_cost: d.transportCost ?? 0,
+    ingredient_cost: d.ingredientCost ?? 0,
+    cake_cost: d.cakeCost ?? (d.ingredientCost ?? 0),
+    ingredient_snapshot: d.ingredientSnapshot || []
+  };
+}
+async function sbAddQuotation(d) {
+  const row = quotationRowFromForm(d);
+  if (d.id) row.id = d.id;
+  const { data, error } = await sb.from('quotations').insert(row).select().single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+async function sbEditQuotation(d) {
+  const row = quotationRowFromForm(d);
+  delete row.status;  // status managed via setQuotationStatus
+  const { error } = await sb.from('quotations').update(row).eq('id', d.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+async function sbDeleteQuotation(d) {
+  const { error } = await sb.from('quotations').delete().eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+async function sbSetQuotationStatus(d) {
+  const { error } = await sb.from('quotations').update({ status: d.status }).eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+// Create an order from a quotation, mark the quote accepted, link them.
+async function sbConvertQuotation(d) {
+  // d carries the full order payload built by the frontend
+  const orderRes = await sbAddOrder(d);
+  if (!orderRes.ok) return orderRes;
+  const { error } = await sb.from('quotations').update({
+    status: 'accepted',
+    converted_order_id: orderRes.id
+  }).eq('id', d.quotationId);
+  if (error) return { ok: false, error: 'Order created (#' + orderRes.id + ') but failed to mark quote: ' + error.message };
+  return { ok: true, id: orderRes.id };
 }
 
 // ── SHOPPING ──────────────────────────────────────────────────
@@ -685,7 +827,8 @@ const S = {
   shoppingTrips: [],
   recipes: [],
   orders: [],
-  nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1
+  quotations: [],
+  nextIngId: 1, nextRecipeId: 1, nextOrderId: 1, nextTripId: 1, nextQuotationId: 1
 };
 
 // HTML-escape for any user-typed string going into innerHTML or attribute values.
@@ -740,7 +883,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(btn) btn.classList.add('active');
-  ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
+  ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,quotations:renderQuotations,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
 }
 
 // ─── THEME ──────────────────────────────────────────────────────────────────
@@ -767,9 +910,10 @@ applyTheme(localStorage.getItem('cakeuz-theme') || 'auto');
 // One sort state per table. col:null = use the table's natural ordering
 // (e.g. orders default of "pending first by due date").
 const _sortState = {
-  inventory: { col: null, dir: 'asc' },
-  recipes:   { col: null, dir: 'asc' },
-  orders:    { col: null, dir: 'asc' }
+  inventory:  { col: null, dir: 'asc' },
+  recipes:    { col: null, dir: 'asc' },
+  orders:     { col: null, dir: 'asc' },
+  quotations: { col: null, dir: 'asc' }
 };
 function setSort(tab, col){
   const s = _sortState[tab];
@@ -781,7 +925,7 @@ function setSort(tab, col){
     s.col = col;
     s.dir = 'asc';
   }
-  ({ inventory: renderInventory, recipes: renderRecipes, orders: renderOrders })[tab]();
+  ({ inventory: renderInventory, recipes: renderRecipes, orders: renderOrders, quotations: renderQuotations })[tab]();
 }
 function sortRows(rows, col, dir, getter){
   if (!col) return rows;
@@ -1067,6 +1211,7 @@ function renderOrders(){
             <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span></td>
             <td><div style="display:flex;gap:4px;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button>
+              ${o.status==='pending' ? `<button class="btn btn-sm" onclick="showEditOrder(${o.id})">Edit</button>` : ''}
               <button class="btn btn-sm" onclick="showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Log</button>
               <button class="btn btn-sm ${o.status==='pending'?'btn-chocolate':''}" onclick="cycleStatus(${o.id})">${o.status==='pending'?'✓ Done':'Undo'}</button>
               <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete order?'))deleteOrder(${o.id})">Del</button>
@@ -1074,6 +1219,359 @@ function renderOrders(){
         }).join('')}</tbody>
       </table>
     </div>`;
+}
+
+// ─── QUOTATIONS ──────────────────────────────────────────────────────────────
+function renderQuotations(){
+  const ss = _sortState.quotations;
+  // Compute revenue/cost/margin per quote up front (used both for sort getter and display)
+  const decorated = S.quotations.map(q => {
+    const r = getRecipe(q.recipeId);
+    const sellPerU = parseFloat(q.sellPricePerUnit) || 0;
+    const cakeRevenue = sellPerU * (q.qty || 1);
+    const packagingTotal = (Array.isArray(q.packaging) ? q.packaging.reduce((s,p)=>s+Number(p.price||0),0) : 0) * (q.qty || 1);
+    const cakeCost = (parseFloat(q.ingredientCost) || (r ? calcIngCost(r) * (q.qty||1) : 0))
+      + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
+    const addonRevenue = (q.addons||[]).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
+    const addonCost    = (q.addons||[]).reduce((s,a)=>s+Number(a.cost||0)*Number(a.qty||0),0);
+    const totalRevenue = cakeRevenue + addonRevenue;
+    const totalCost    = cakeCost   + addonCost;
+    const margin = totalRevenue > 0 ? Math.round((totalRevenue - totalCost) / totalRevenue * 100) : 0;
+    return { q, r, totalRevenue, totalCost, margin };
+  });
+  const sortedRows = sortRows(decorated, ss.col, ss.dir, (row, col) => {
+    switch (col) {
+      case 'customer':   return row.q.customer || '';
+      case 'item':       return row.r ? row.r.name : '';
+      case 'qty':        return Number(row.q.qty) || 0;
+      case 'sell':       return row.totalRevenue;
+      case 'cost':       return row.totalCost;
+      case 'margin':     return row.margin;
+      case 'valid':      return dateKey(row.q.validUntil);
+      case 'status':     return row.q.status || '';
+      default: return null;
+    }
+  });
+  const todayKey = today();
+  // Counts per status for the metric strip
+  const cntDraft    = S.quotations.filter(q => q.status === 'draft').length;
+  const cntSent     = S.quotations.filter(q => q.status === 'sent').length;
+  const cntAccepted = S.quotations.filter(q => q.status === 'accepted').length;
+  document.getElementById('tab-quotations').innerHTML = `
+    <div class="metric-grid" style="margin-bottom:1rem">
+      <div class="metric"><div class="metric-label">Draft</div><div class="metric-val">${cntDraft}</div></div>
+      <div class="metric"><div class="metric-label">Sent</div><div class="metric-val amber">${cntSent}</div></div>
+      <div class="metric"><div class="metric-label">Accepted</div><div class="metric-val green">${cntAccepted}</div></div>
+      <div class="metric"><div class="metric-label">Total quotes</div><div class="metric-val">${S.quotations.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Quotations</span><button class="btn btn-primary btn-sm" onclick="showAddQuotation()">+ New quotation</button></div>
+      <table>
+        <thead><tr>
+          ${sortableTh('quotations','customer','Customer','15%')}
+          ${sortableTh('quotations','item','Item','18%')}
+          ${sortableTh('quotations','qty','Qty','5%')}
+          ${sortableTh('quotations','sell','Sell','11%')}
+          ${sortableTh('quotations','cost','Cost','11%')}
+          ${sortableTh('quotations','margin','Margin','7%')}
+          ${sortableTh('quotations','valid','Valid until','11%')}
+          ${sortableTh('quotations','status','Status','8%')}
+          <th style="width:14%"></th>
+        </tr></thead>
+        <tbody>${sortedRows.map(({q, r, totalRevenue, totalCost, margin}) => {
+          const expired = q.validUntil && dateKey(q.validUntil) < todayKey && q.status === 'sent';
+          const statusBadgeClass = q.status === 'accepted' ? 'badge-ok'
+            : q.status === 'rejected' || q.status === 'expired' ? 'badge-danger'
+            : q.status === 'sent' ? 'badge-warn' : 'badge-info';
+          const marginClass = margin >= 40 ? 'badge-ok' : margin >= 20 ? 'badge-warn' : 'badge-danger';
+          return `<tr>
+            <td style="font-weight:500">${esc(q.customer)}</td>
+            <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
+            <td>${q.qty}</td>
+            <td style="font-weight:500">${fmtMoney(totalRevenue)}</td>
+            <td style="color:var(--text-secondary)">${fmtMoney(totalCost)}</td>
+            <td><span class="badge ${marginClass}">${margin}%</span></td>
+            <td style="font-size:12px;${expired?'color:var(--danger);font-weight:600':''}">${q.validUntil ? fmtDate(q.validUntil) : '—'}${expired?' ⚠':''}</td>
+            <td><span class="badge ${statusBadgeClass}">${esc(q.status)}</span></td>
+            <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="showQuotationDetail(${q.id})">View</button>
+              ${q.status !== 'accepted' ? `<button class="btn btn-sm" onclick="showEditQuotation(${q.id})">Edit</button>` : ''}
+              ${q.status === 'accepted' && q.convertedOrderId
+                ? `<button class="btn btn-sm" onclick="switchToOrder(${q.convertedOrderId})">Open order</button>`
+                : (q.status !== 'accepted' && q.status !== 'rejected'
+                    ? `<button class="btn btn-sm btn-chocolate" onclick="convertQuotationToOrder(${q.id})">→ Order</button>`
+                    : '')}
+              <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete quotation?'))deleteQuotation(${q.id})">Del</button>
+            </div></td></tr>`;
+        }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:1.5rem">No quotations yet. Use <strong>+ New quotation</strong> to create one.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+// "Open order" shortcut from a converted quotation
+function switchToOrder(orderId){
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.textContent.includes('Orders')) switchTab('orders', b);
+  });
+  setTimeout(() => showOrderDetail(orderId), 100);
+}
+
+function showAddQuotation(){
+  if (S.recipes.length === 0) {
+    alert('Add a recipe first — quotations need a recipe to compute costing.');
+    return;
+  }
+  showQuotationForm(null, 'Add');
+}
+function showEditQuotation(id){
+  const q = S.quotations.find(x => x.id === id);
+  if (!q) return;
+  if (q.status === 'accepted') {
+    alert('This quotation has already been converted to an order. Edit the order instead.');
+    return;
+  }
+  showQuotationForm(q, 'Edit');
+}
+// Unified quotation form (mirrors showOrderForm but with `validUntil` instead of `dueDate`, plus a status dropdown)
+function showQuotationForm(q, mode){
+  const isEdit = mode === 'Edit';
+  const firstRecipe = (q && getRecipe(q.recipeId)) || S.recipes[0];
+  const recipeId = q ? q.recipeId : firstRecipe.id;
+  const recipeOptsHtml = S.recipes.map(rr =>
+    `<option value="${rr.id}"${rr.id === recipeId ? ' selected' : ''}>${esc(rr.name)} — ${fmtMoney(rr.sellPrice)}</option>`
+  ).join('');
+  const valSell  = q ? (q.sellPricePerUnit ?? firstRecipe.sellPrice ?? 0) : (firstRecipe.sellPrice ?? 0);
+  const valLab   = q ? (q.labour ?? firstRecipe.defaultLabour ?? 20)      : (firstRecipe.defaultLabour ?? 20);
+  const valElec  = q ? (q.electricity ?? firstRecipe.defaultElectricity ?? 5) : (firstRecipe.defaultElectricity ?? 5);
+  const valOver  = q ? (q.overhead ?? firstRecipe.defaultOverhead ?? 5)   : (firstRecipe.defaultOverhead ?? 5);
+  const valTrans = q ? (q.transportCost ?? 0) : 0;
+  const valQty   = q ? q.qty : 1;
+  const valValid = q && q.validUntil ? dateKey(q.validUntil) : '';
+  const valNote  = q ? q.note : '';
+  const valStatus = q ? q.status : 'draft';
+  const startPackaging = q
+    ? (Array.isArray(q.packaging) ? q.packaging : [])
+    : (Array.isArray(firstRecipe.packaging) ? firstRecipe.packaging : []);
+  const startAddons = q && Array.isArray(q.addons) ? q.addons : [];
+  showModal(`<div class="modal-title">${mode === 'Edit' ? 'Edit Quotation #' + q.id : 'New Quotation'}</div>
+    <div class="modal-section-title">Customer</div>
+    <div class="form-row">
+      <div class="form-group"><label>Name</label><input id="m-ocust" value="${esc(q?.customer || '')}" placeholder="Customer name"></div>
+      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(q?.customerPhone || '')}" placeholder="+65 ..."></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email" value="${esc(q?.customerEmail || '')}"></div>
+      <div class="form-group"><label>Address (optional)</label><input id="m-oaddr" value="${esc(q?.customerAddress || '')}"></div>
+    </div>
+    <div class="modal-section-title">Quote</div>
+    <div class="form-row">
+      <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="onOrderRecipeChanged()">${recipeOptsHtml}</select></div>
+      <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="${valQty}" min="1" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Valid until</label><input id="m-odate" type="date" value="${valValid}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="m-qstatus">
+        ${['draft','sent','accepted','rejected','expired'].map(s => `<option value="${s}"${s===valStatus?' selected':''}>${s}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Note (optional)</label><input id="m-onote" value="${esc(valNote)}" placeholder="Special requests..."></div>
+    </div>
+
+    <div class="modal-section-title">Pricing &amp; cost <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pre-filled from recipe, editable per quote</span></div>
+    <div class="form-row">
+      <div class="form-group"><label>Sell / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${valSell}" oninput="updateOrderHelper()"></div>
+      <div class="form-group">
+        <label>Labour (${CURRENCY})</label>
+        <input id="m-olabour" type="number" step="0.01" value="${valLab}" oninput="updateOrderHelper()">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-olabour-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-olabour')">
+          <span>×</span>
+          <input id="m-olabour-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-olabour')">
+          <span>/hr</span>
+        </div>
+      </div>
+      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${valElec}" oninput="updateOrderHelper()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Overhead (${CURRENCY})</label>
+        <input id="m-oover" type="number" step="0.01" value="${valOver}" oninput="updateOrderHelper()">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-oover-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-oover')">
+          <span>×</span>
+          <input id="m-oover-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-oover')">
+          <span>/hr</span>
+        </div>
+      </div>
+      <div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="${valTrans}" oninput="updateOrderHelper()"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px">Transport is invoiced separately — not part of cake cost or cake margin.</div>
+
+    <div class="modal-section-title">Packaging items</div>
+    <div id="m-opack-rows"></div>
+    <button class="btn btn-sm" onclick="addPackagingRow('m-opack-rows');updateOrderHelper()" style="margin-bottom:12px">+ Add packaging item</button>
+
+    <div class="modal-section-title">Add-ons</div>
+    <div id="m-oaddon-rows"></div>
+    <button class="btn btn-sm" onclick="addAddonRow('m-oaddon-rows');updateOrderHelper()" style="margin-bottom:12px">+ Add line</button>
+
+    <div id="order-helper" class="totals-block"></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="${isEdit ? `saveEditQuotation(${q.id})` : 'saveQuotation()'}">${isEdit ? 'Save changes' : 'Save quote'}</button>
+      <button class="btn" onclick="tryCloseModal()">Cancel</button>
+    </div>`, { wide: true });
+  if (startPackaging.length) startPackaging.forEach(p => addPackagingRow('m-opack-rows', p));
+  startAddons.forEach(a => addAddonRow('m-oaddon-rows', a));
+  updateOrderHelper();
+}
+
+// Read the quotation form payload — same fields as order payload, with status + validUntil
+function readQuotationFormPayload(){
+  const p = readOrderFormPayload(); if (!p) return null;
+  const status = document.getElementById('m-qstatus').value || 'draft';
+  // The form re-uses m-odate for valid_until in quotations
+  return { ...p, status, validUntil: p.dueDate, dueDate: undefined };
+}
+async function saveQuotation(){
+  const p = readQuotationFormPayload(); if (!p) return;
+  const id = S.nextQuotationId++;
+  const { recipe, dueDate, ...rest } = p;
+  const quotation = { id, ...rest, convertedOrderId: null, createdAt: new Date().toISOString() };
+  S.quotations.unshift(quotation);
+  logAction('quote','Quotation drafted', `${p.customer} — ${recipe.name} × ${p.qty}, sell ${fmtMoney(p.sellPricePerUnit * p.qty)}`, 'quotation', id);
+  closeModal(); renderQuotations();
+  await persistWrite('addQuotation', quotation, activityLog[0]);
+}
+async function saveEditQuotation(id){
+  const existing = S.quotations.find(x => x.id === id);
+  if (!existing) return;
+  const p = readQuotationFormPayload(); if (!p) return;
+  const { recipe, dueDate, ...rest } = p;
+  Object.assign(existing, rest);
+  logAction('quote','Quotation updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}`, 'quotation', id);
+  closeModal(); renderQuotations();
+  await persistWrite('editQuotation', { id, ...rest }, activityLog[0]);
+}
+async function deleteQuotation(id){
+  S.quotations = S.quotations.filter(q => q.id !== id);
+  logAction('delete','Quotation deleted', '#' + id, 'quotation', id);
+  renderQuotations();
+  await persistWrite('deleteQuotation', { id }, activityLog[0]);
+}
+async function setQuotationStatus(id, status){
+  const q = S.quotations.find(x => x.id === id); if (!q) return;
+  const before = q.status; q.status = status;
+  logAction('quote','Status changed', `#${id} ${before} → ${status}`, 'quotation', id, { status: { old: before, new: status } });
+  renderQuotations();
+  await persistWrite('setQuotationStatus', { id, status }, activityLog[0]);
+}
+function showQuotationDetail(id){
+  const q = S.quotations.find(x => x.id === id); if (!q) return;
+  const r = getRecipe(q.recipeId);
+  const sellPerU = parseFloat(q.sellPricePerUnit) || 0;
+  const cakeRevenue = sellPerU * q.qty;
+  const packagingTotal = (Array.isArray(q.packaging) ? q.packaging.reduce((s,p)=>s+Number(p.price||0),0) : 0) * q.qty;
+  const cakeCost = (parseFloat(q.ingredientCost) || (r ? calcIngCost(r) * q.qty : 0))
+    + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
+  const cakeProfit = cakeRevenue - cakeCost;
+  const cakeMargin = cakeRevenue > 0 ? Math.round(cakeProfit / cakeRevenue * 100) : 0;
+  const addonRevenue = (q.addons||[]).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
+  const addonCost    = (q.addons||[]).reduce((s,a)=>s+Number(a.cost ||0)*Number(a.qty||0),0);
+  const totalRevenue = cakeRevenue + addonRevenue;
+  const totalCost    = cakeCost   + addonCost;
+  const totalProfit  = totalRevenue - totalCost;
+  const totalMargin  = totalRevenue > 0 ? Math.round(totalProfit / totalRevenue * 100) : 0;
+  const invoiceTotal = totalRevenue + (Number(q.transportCost)||0);
+  const lines = Array.isArray(q.ingredientSnapshot) ? q.ingredientSnapshot : [];
+  const statusBadgeClass = q.status === 'accepted' ? 'badge-ok'
+    : q.status === 'rejected' || q.status === 'expired' ? 'badge-danger'
+    : q.status === 'sent' ? 'badge-warn' : 'badge-info';
+  // Quick status-set buttons for the lifecycle
+  const statusButtons = ['draft','sent','accepted','rejected','expired'].filter(s => s !== q.status).map(s =>
+    `<button class="btn btn-sm" onclick="setQuotationStatus(${q.id}, '${s}')">→ ${s}</button>`
+  ).join(' ');
+  showModal(`<div class="modal-title">Quotation #${q.id} — ${esc(q.customer)}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
+      ${q.customerPhone ? `📞 ${esc(q.customerPhone)} &nbsp; ` : ''}
+      ${q.customerEmail ? `✉️ ${esc(q.customerEmail)} &nbsp; ` : ''}
+      ${q.customerAddress ? `<br>📍 ${esc(q.customerAddress)}` : ''}
+    </div>
+    <div class="modal-section-title">Quote details</div>
+    <div class="kv-row"><span class="kv-label">Recipe</span><span class="kv-value"><strong>${r ? esc(r.name) : '?'}</strong> × ${q.qty}</span></div>
+    <div class="kv-row"><span class="kv-label">Valid until</span><span class="kv-value">${q.validUntil ? fmtDate(q.validUntil) : '—'}</span></div>
+    <div class="kv-row"><span class="kv-label">Status</span><span class="badge ${statusBadgeClass}">${esc(q.status)}</span></div>
+    ${q.convertedOrderId ? `<div class="kv-row"><span class="kv-label">Converted to</span><span class="kv-value"><a href="#" onclick="closeModal();switchToOrder(${q.convertedOrderId});return false">Order #${q.convertedOrderId}</a></span></div>` : ''}
+    ${q.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:10px 0;padding:10px 12px;background:var(--surface-soft);border-radius:6px;border-left:3px solid var(--caramel)">📝 ${esc(q.note)}</div>` : ''}
+
+    <div class="modal-section-title">Quick status</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${statusButtons || '<span style="color:var(--text-muted);font-size:12px">No other status transitions available.</span>'}</div>
+
+    ${lines.length ? `
+      <div class="modal-section-title">Ingredients (snapshot)</div>
+      ${lines.map(l => `<div class="kv-row"><span class="kv-label">${esc(l.name)} <span style="color:var(--text-muted)">— ${l.qtyEntered} ${esc(l.unit)}</span></span><span class="kv-value">${fmtMoney(l.lineCost)}</span></div>`).join('')}` : ''}
+    ${q.packaging && q.packaging.length ? `
+      <div class="modal-section-title">Packaging (${q.qty}× per cake)</div>
+      ${q.packaging.map(p => `<div class="kv-row"><span class="kv-label">${esc(p.item)} <span style="color:var(--text-muted)">@ ${fmtMoney(p.price)}</span></span><span class="kv-value">${fmtMoney(Number(p.price||0) * q.qty)}</span></div>`).join('')}` : ''}
+    ${q.addons && q.addons.length ? `
+      <div class="modal-section-title">Add-ons</div>
+      ${q.addons.map(a => `<div class="kv-row"><span class="kv-label">${esc(a.name)} <span style="color:var(--text-muted)">× ${a.qty} @ ${fmtMoney(a.price)}</span></span><span class="kv-value">${fmtMoney(Number(a.price||0) * Number(a.qty||0))}</span></div>`).join('')}` : ''}
+
+    <div class="totals-block">
+      <div class="kv-row" style="font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
+      <div class="kv-row" style="color:var(--success)"><span>Cake sell</span><span style="font-weight:600">${fmtMoney(cakeRevenue)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Cake profit</span><span>${fmtMoney(cakeProfit)} (${cakeMargin}%)</span></div>
+      ${q.addons && q.addons.length ? `
+      <div style="border-top:1px dashed var(--border-light);margin:6px 0"></div>
+      <div class="kv-row" style="font-weight:600"><span>Total profit</span><span>${fmtMoney(totalProfit)} (${totalMargin}%)</span></div>` : ''}
+      <div style="border-top:1px dashed var(--border-light);margin:6px 0 2px"></div>
+      <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport</span><span>${fmtMoney(q.transportCost || 0)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      ${q.status !== 'accepted' ? `<button class="btn btn-primary" onclick="closeModal();showEditQuotation(${q.id})">Edit</button>` : ''}
+      ${q.status !== 'accepted' && q.status !== 'rejected'
+        ? `<button class="btn btn-chocolate" onclick="closeModal();convertQuotationToOrder(${q.id})">→ Convert to Order</button>` : ''}
+      <button class="btn" onclick="closeModal();showEntityHistory('quotation', ${q.id}, ${JSON.stringify('Quote #'+q.id+' — '+q.customer)})">Change log</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>`, { wide: true });
+}
+// Convert a quotation → order: snapshot the ingredients freshly, create the order, link the quote
+async function convertQuotationToOrder(quoteId){
+  const q = S.quotations.find(x => x.id === quoteId);
+  if (!q) return;
+  const r = getRecipe(q.recipeId);
+  if (!r) { alert('Recipe linked to this quote is missing — pick a different recipe by editing the quote first.'); return; }
+  if (!confirm(`Convert quotation #${q.id} into a new order? The quote will be marked Accepted.`)) return;
+  const snap = buildOrderSnapshot(r, q.qty);
+  const id = S.nextOrderId++;
+  const packagingTotal = (q.packaging || []).reduce((s,p)=>s+Number(p.price||0),0) * q.qty;
+  const cakeCost = snap.ingredientCost + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
+  const order = {
+    id,
+    customer: q.customer, customerPhone: q.customerPhone, customerEmail: q.customerEmail, customerAddress: q.customerAddress,
+    recipeId: q.recipeId, qty: q.qty,
+    note: q.note || '',
+    dueDate: q.validUntil || today(),
+    status: 'pending',
+    sellPricePerUnit: q.sellPricePerUnit,
+    sellPriceSnapshot: q.sellPricePerUnit,
+    labour: q.labour, electricity: q.electricity, overhead: q.overhead,
+    packingPerUnit: null,
+    packaging: q.packaging || [],
+    addons: q.addons || [],
+    transportCost: q.transportCost || 0,
+    ingredientCost: snap.ingredientCost,
+    cakeCost,
+    ingredientSnapshot: snap.lines,
+    completedDate: ''
+  };
+  S.orders.push(order);
+  q.status = 'accepted';
+  q.convertedOrderId = id;
+  logAction('quote','Quotation accepted → Order placed', `Quote #${q.id} → Order #${id} — ${q.customer}`, 'order', id);
+  renderQuotations();
+  await persistWrite('convertQuotation', { ...order, quotationId: q.id }, activityLog[0]);
 }
 
 // ─── PRICING ─────────────────────────────────────────────────────────────────
@@ -1225,13 +1723,14 @@ function renderHelp(){
       <h2>How to use CakeUz</h2>
       <p>A step-by-step guide for running your home cake shop. The app saves every change to Supabase the moment you click Save. A copy is backed up twice a night — once to your Google Sheet, once to GitHub.</p>
 
-      <h2>1. The seven tabs</h2>
+      <h2>1. The tabs</h2>
       <table><thead><tr><th>Tab</th><th>What it's for</th></tr></thead><tbody>
         <tr><td>📊 Dashboard</td><td>Revenue, profit and quick alerts at a glance</td></tr>
         <tr><td>📦 Inventory</td><td>Every ingredient you have, with stock + current cost</td></tr>
         <tr><td>🛒 Shopping</td><td>Log a real-world shopping trip (auto-updates ingredient prices and stock)</td></tr>
-        <tr><td>🍰 Recipes</td><td>Define what goes into each cake + its default batch costs</td></tr>
-        <tr><td>📝 Orders</td><td>Customer orders, costing snapshot, profit per order</td></tr>
+        <tr><td>🍰 Recipes</td><td>Define what goes into each cake — ingredients, photo, method, batch costs, packaging</td></tr>
+        <tr><td>📝 Orders</td><td>Customer orders, costing snapshot, profit per order — fully editable while pending</td></tr>
+        <tr><td>📄 Quotations</td><td>Price quotes for customers; convert to an order in one click when accepted</td></tr>
         <tr><td>💰 Pricing</td><td>"What should I charge?" exploration tool</td></tr>
         <tr><td>📜 Activity Log</td><td>Searchable audit trail of every change</td></tr>
       </tbody></table>
@@ -1283,7 +1782,11 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
         <li><strong>Recipes</strong> → <strong>+ Add recipe</strong></li>
         <li><em>(Optional)</em> <strong>Start from existing recipe</strong> dropdown — copy from a similar one and tweak</li>
         <li><strong>Recipe name</strong>, <strong>Yield</strong> (e.g. "1 whole cake (8 inch)"), <strong>Suggested sell price per unit</strong></li>
-        <li><strong>Batch costs</strong> (defaults for new orders): Labour, Electricity, Packing per unit</li>
+        <li><strong>Photo</strong>: upload an image of the finished cake (stored in Supabase Storage; thumbnail shown right away)</li>
+        <li><strong>About</strong>: short description shown on the recipe page</li>
+        <li><strong>Method</strong>: numbered steps; "+ Add step" to add more, × to remove</li>
+        <li><strong>Batch costs</strong> (defaults for new orders): Labour, Electricity, Overhead. Each has an optional <em>"or hrs × rate /hr"</em> helper — type both and the flat amount auto-fills</li>
+        <li><strong>Packaging items</strong>: a list of named items charged per cake (e.g. Cake board 2.50, Box 3.00, Bag 0.50). Each cake in the order gets multiplied by this total.</li>
         <li><strong>Ingredients</strong>: for each, pick ingredient + qty + unit. <em>Example: 250 g of flour even though flour is stored in kg — the system converts.</em></li>
         <li><strong>Save recipe</strong></li>
       </ol>
@@ -1298,24 +1801,38 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
       <ol>
         <li><strong>Orders</strong> → <strong>+ New order</strong></li>
         <li><strong>Customer</strong>: Name, Phone, optionally Email + Address</li>
-        <li><strong>Recipe</strong> — the cost fields auto-fill from that recipe</li>
+        <li><strong>Recipe</strong> — cost fields, packaging items and overhead auto-fill from the recipe's defaults</li>
         <li><strong>Quantity</strong>, <strong>Due date</strong>, optional Note</li>
-        <li><strong>Pricing &amp; cost</strong> — all editable per order: <em>Sell price / unit, Labour, Electricity, Packing / unit</em></li>
+        <li><strong>Pricing &amp; cost</strong> — all editable per order: <em>Sell price / unit, Labour, Electricity, Overhead</em>. Labour and Overhead each have an <em>"or hrs × rate /hr"</em> helper</li>
+        <li><strong>Packaging items</strong> — inherited from the recipe; edit any line or add more</li>
+        <li><strong>Add-ons</strong> — ad-hoc extras (cake toppers, candles, etc.). Each row: name, qty, <em>price</em> (charged), <em>cost</em> (your buy price). They add to revenue AND cost separately from cake margin</li>
         <li><strong>Transport</strong> — only fill if you're charging the customer for delivery. <span class="tip">Transport is invoiced separately and does <strong>not</strong> count toward cake profit.</span></li>
-        <li>Live helper at the bottom shows: cake cost, sell, profit %, invoice total</li>
+        <li>Live helper shows: cake cost, cake profit %, add-on profit, total profit, invoice total</li>
         <li><strong>Place order</strong></li>
       </ol>
 
-      <h3>3.10 Mark an order Done</h3>
+      <h3>3.10 Edit an order</h3>
+      <p>Pending orders show an <strong>Edit</strong> button on the row (and inside the View modal). Change any field; the form is the same as Add. Once an order is <strong>Done</strong>, the Edit button hides — Mark Undone first if you need to change a completed order.</p>
+
+      <h3>3.11 Mark an order Done</h3>
       <p><strong>Orders</strong> → <strong>✓ Done</strong> on the pending row. System subtracts the snapshot ingredient quantities from your inventory and sets the completion date. If stock would go negative you get a warning but can still proceed.</p>
 
-      <h3>3.11 Undo a completed order</h3>
+      <h3>3.12 Undo a completed order</h3>
       <p><strong>Orders</strong> → <strong>Undo</strong> on a completed row. Status flips back to pending; stock is restored.</p>
 
-      <h3>3.12 View an order's full breakdown</h3>
-      <p><strong>Orders</strong> → <strong>View</strong> on any row. Shows customer details, ingredient lines as they were when the order was placed, labour/electricity/packing, total cake cost, sell, cake profit. Below a dashed line: transport + invoice total.</p>
+      <h3>3.13 View an order's full breakdown</h3>
+      <p><strong>Orders</strong> → <strong>View</strong> on any row. Shows customer details, ingredient lines as they were when the order was placed, labour/electricity/overhead/packaging items, total cake cost, sell, cake profit, then add-ons (with own profit), then total profit. Below a dashed line: transport + invoice total.</p>
 
-      <h3>3.13 Search the audit log</h3>
+      <h3>3.14 Quotations — quote → accepted → order</h3>
+      <ol>
+        <li><strong>Quotations</strong> tab → <strong>+ New quotation</strong></li>
+        <li>Same fields as a new order, plus a <strong>Valid until</strong> date and a <strong>Status</strong> dropdown (default <em>draft</em>)</li>
+        <li>Save the quote (status <em>draft</em>). Open it → set status to <em>sent</em> when you send it to the customer</li>
+        <li>When the customer accepts: click <strong>→ Order</strong> on the row (or "→ Convert to Order" in the detail). System creates a fresh order pre-filled from the quote, marks the quote <em>accepted</em>, and links them</li>
+        <li>If they reject or it expires: set the status accordingly. Past quotes stay searchable.</li>
+      </ol>
+
+      <h3>3.15 Search the audit log</h3>
       <p><strong>Activity Log</strong> tab. Search box filters by keyword. Chip filters: All / Ingredients / Recipes / Orders / Trips. Each edit shows old → new in red/green.</p>
 
       <h2>4. The "Discard unsaved changes?" prompt</h2>
@@ -1671,13 +2188,21 @@ function showCloneRecipe(srcId){
     sellPrice: src.sellPrice || 0,
     defaultLabour: src.defaultLabour ?? 20,
     defaultElectricity: src.defaultElectricity ?? 5,
-    defaultPackingPerUnit: src.defaultPackingPerUnit ?? 2,
+    defaultOverhead: src.defaultOverhead ?? 5,
+    defaultPackingPerUnit: src.defaultPackingPerUnit ?? 0,
+    photoUrl: '',  // clones don't carry the photo
+    description: src.description || '',
+    steps: Array.isArray(src.steps) ? [...src.steps] : [],
+    packaging: Array.isArray(src.packaging) ? src.packaging.map(p => ({...p})) : [],
     ingredients: (src.ingredients || []).map(ri => ({ ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' }))
   };
   showRecipeForm(clone, 'Add');
 }
+// Hold the in-progress photo URL across input events (set by the file input change handler)
+let _recipePhotoUrl = '';
 function showRecipeForm(r, mode){
   const isEdit = mode === 'Edit';
+  _recipePhotoUrl = r.photoUrl || '';
   const startFromPicker = !isEdit
     ? `<div class="form-row"><div class="form-group"><label>Start from existing recipe (optional)</label>
         <select id="m-rstartfrom" onchange="prefillRecipeFromExisting(this.value)">
@@ -1692,12 +2217,50 @@ function showRecipeForm(r, mode){
       <div class="form-group"><label>Yield</label><input id="m-ryield" placeholder="e.g. 1 whole cake (8 inch)" value="${esc(r.yield||'')}"></div>
       <div class="form-group"><label>Suggested sell price / unit (${CURRENCY})</label><input id="m-rprice" type="number" value="${r.sellPrice||0}" step="0.01"></div>
     </div>
+
+    <div class="modal-section-title">Photo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— optional</span></div>
+    <div id="m-rphoto-preview">${_recipePhotoUrl ? `<img src="${esc(_recipePhotoUrl)}" style="max-width:200px;max-height:140px;border-radius:8px;display:block;margin-bottom:8px"><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Saved photo. Replace by picking another file below.</div>` : ''}</div>
+    <input type="file" id="m-rphoto" accept="image/*" onchange="handleRecipePhoto(event)" style="font-size:12px">
+    <div id="m-rphoto-status" style="font-size:12px;color:var(--text-muted);margin-top:6px;min-height:14px"></div>
+
+    <div class="modal-section-title">About <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— short description shown on the recipe page</span></div>
+    <textarea id="m-rdesc" placeholder="e.g. Moist date cake with toasted cashews on top" style="width:100%;min-height:60px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--warm-white);color:var(--text-primary);resize:vertical">${esc(r.description||'')}</textarea>
+
+    <div class="modal-section-title">Method <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— numbered steps</span></div>
+    <div id="m-rsteps"></div>
+    <button class="btn btn-sm" onclick="addRecipeStepRow()" style="margin-bottom:12px">+ Add step</button>
+
     <div class="modal-section-title">Batch costs <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— defaults for new orders, editable per order</span></div>
     <div class="form-row">
-      <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-rlabour" type="number" value="${r.defaultLabour ?? 20}" step="0.01"></div>
+      <div class="form-group">
+        <label>Labour (${CURRENCY})</label>
+        <input id="m-rlabour" type="number" value="${r.defaultLabour ?? 20}" step="0.01">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-rlabour-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillFromHours('m-rlabour')">
+          <span>×</span>
+          <input id="m-rlabour-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillFromHours('m-rlabour')">
+          <span>/hr</span>
+        </div>
+      </div>
       <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-relec" type="number" value="${r.defaultElectricity ?? 5}" step="0.01"></div>
-      <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-rpack" type="number" value="${r.defaultPackingPerUnit ?? 2}" step="0.01"></div>
+      <div class="form-group">
+        <label>Overhead (${CURRENCY})</label>
+        <input id="m-rover" type="number" value="${r.defaultOverhead ?? 5}" step="0.01">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-rover-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillFromHours('m-rover')">
+          <span>×</span>
+          <input id="m-rover-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillFromHours('m-rover')">
+          <span>/hr</span>
+        </div>
+      </div>
     </div>
+
+    <div class="modal-section-title">Packaging items <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— each charged per cake (cake board, box, bag, …)</span></div>
+    <div id="m-rpack-rows"></div>
+    <button class="btn btn-sm" onclick="addPackagingRow('m-rpack-rows')" style="margin-bottom:12px">+ Add packaging item</button>
+
     <div class="modal-section-title">Ingredients <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pick any compatible unit; system converts at costing time</span></div>
     <div id="m-ings"></div>
     <button class="btn btn-sm" onclick="addRecipeIngRow()" style="margin-bottom:12px">+ Add ingredient</button>
@@ -1705,12 +2268,93 @@ function showRecipeForm(r, mode){
       <button class="btn btn-primary" onclick="${isEdit?`saveEditRecipe(${r.id})`:'saveRecipe()'}">${isEdit?'Save changes':'Save recipe'}</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
     </div>`, { wide: true });
-  if (r.ingredients && r.ingredients.length) {
-    r.ingredients.forEach(ri => addRecipeIngRow(ri));
+  // Populate steps
+  const steps = Array.isArray(r.steps) ? r.steps : [];
+  if (steps.length) steps.forEach(s => addRecipeStepRow(s));
+  else addRecipeStepRow('');
+  // Populate packaging items
+  const pack = Array.isArray(r.packaging) ? r.packaging : [];
+  if (pack.length) pack.forEach(p => addPackagingRow('m-rpack-rows', p));
+  else addPackagingRow('m-rpack-rows', { item: 'Cake board', price: 0 });
+  // Populate ingredients
+  if (r.ingredients && r.ingredients.length) r.ingredients.forEach(ri => addRecipeIngRow(ri));
+  else addRecipeIngRow();
+}
+
+async function handleRecipePhoto(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('m-rphoto-status');
+  status.textContent = 'Uploading…';
+  const url = await uploadRecipePhoto(file);
+  if (url) {
+    _recipePhotoUrl = url;
+    document.getElementById('m-rphoto-preview').innerHTML =
+      `<img src="${esc(url)}" style="max-width:200px;max-height:140px;border-radius:8px;display:block;margin-bottom:8px">`;
+    status.innerHTML = '✓ Uploaded';
+    _modalDirty = true;
   } else {
-    addRecipeIngRow();
+    status.innerHTML = '<span style="color:var(--danger)">Upload failed</span>';
   }
 }
+
+function addRecipeStepRow(text){
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;align-items:flex-start;margin-bottom:6px';
+  div.innerHTML = `
+    <span style="flex:0 0 22px;padding-top:8px;color:var(--text-muted);font-size:12px" class="step-idx">—</span>
+    <textarea class="step-text" placeholder="Step description" style="flex:1;min-height:34px;font-family:inherit;font-size:13px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--warm-white);color:var(--text-primary);resize:vertical">${esc(text||'')}</textarea>
+    <button class="btn btn-sm btn-danger" onclick="this.parentElement.remove();renumberRecipeSteps()" style="flex:0 0 auto">×</button>`;
+  document.getElementById('m-rsteps').appendChild(div);
+  renumberRecipeSteps();
+}
+function renumberRecipeSteps(){
+  const rows = document.querySelectorAll('#m-rsteps .step-idx');
+  rows.forEach((el, i) => { el.textContent = (i + 1) + '.'; });
+}
+
+function addPackagingRow(containerId, prefill){
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  const item = (prefill && prefill.item) || '';
+  const price = prefill && prefill.price != null ? prefill.price : 0;
+  div.innerHTML = `
+    <input class="pack-item" type="text" placeholder="Item (e.g. Cake board)" value="${esc(item)}" style="flex:1;min-width:140px">
+    <input class="pack-price" type="number" step="0.01" value="${price}" placeholder="Price (${CURRENCY})" style="flex:0 0 130px;width:130px">
+    <button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById(containerId).appendChild(div);
+}
+function readPackagingFromForm(containerId){
+  const out = [];
+  document.querySelectorAll('#' + containerId + ' .ing-row').forEach(row => {
+    const item = row.querySelector('.pack-item').value.trim();
+    const price = parseFloat(row.querySelector('.pack-price').value) || 0;
+    if (item && price >= 0) out.push({ item, price });
+  });
+  return out;
+}
+function readStepsFromForm(){
+  const out = [];
+  document.querySelectorAll('#m-rsteps .step-text').forEach(el => {
+    const t = el.value.trim();
+    if (t) out.push(t);
+  });
+  return out;
+}
+// Hours × rate helper for labour/overhead — auto-fills the flat amount when both are entered
+function autoFillFromHours(targetId){
+  const baseId = targetId.replace(/^m-/, 'm-');
+  const hoursEl = document.getElementById(targetId + '-hours');
+  const rateEl  = document.getElementById(targetId + '-rate');
+  if (!hoursEl || !rateEl) return;
+  const h = parseFloat(hoursEl.value) || 0;
+  const r = parseFloat(rateEl.value) || 0;
+  if (h > 0 && r > 0) {
+    document.getElementById(targetId).value = (h * r).toFixed(2);
+    _modalDirty = true;
+  }
+}
+
 // "Start from existing" handler — repopulates the open Add Recipe form.
 function prefillRecipeFromExisting(srcId){
   if (!srcId) return;
@@ -1721,7 +2365,17 @@ function prefillRecipeFromExisting(srcId){
   document.getElementById('m-rprice').value = src.sellPrice || 0;
   document.getElementById('m-rlabour').value = src.defaultLabour ?? 20;
   document.getElementById('m-relec').value   = src.defaultElectricity ?? 5;
-  document.getElementById('m-rpack').value   = src.defaultPackingPerUnit ?? 2;
+  document.getElementById('m-rover').value   = src.defaultOverhead ?? 5;
+  document.getElementById('m-rdesc').value   = src.description || '';
+  // Steps
+  document.getElementById('m-rsteps').innerHTML = '';
+  (Array.isArray(src.steps) ? src.steps : []).forEach(s => addRecipeStepRow(s));
+  if (!document.querySelectorAll('#m-rsteps .step-text').length) addRecipeStepRow('');
+  // Packaging
+  document.getElementById('m-rpack-rows').innerHTML = '';
+  (Array.isArray(src.packaging) ? src.packaging : []).forEach(p => addPackagingRow('m-rpack-rows', p));
+  if (!document.querySelectorAll('#m-rpack-rows .ing-row').length) addPackagingRow('m-rpack-rows', { item: 'Cake board', price: 0 });
+  // Ingredients
   document.getElementById('m-ings').innerHTML = '';
   (src.ingredients || []).forEach(ri => addRecipeIngRow({ ingId: ri.ingId, qty: ri.qty, unit: ri.unit || '' }));
   _modalDirty = true;
@@ -1766,48 +2420,62 @@ function readRecipeBatchCostsFromForm(){
   return {
     defaultLabour:           parseFloat(document.getElementById('m-rlabour').value) || 0,
     defaultElectricity:      parseFloat(document.getElementById('m-relec').value)   || 0,
-    defaultPackingPerUnit:   parseFloat(document.getElementById('m-rpack').value)   || 0
+    defaultOverhead:         parseFloat(document.getElementById('m-rover').value)   || 0
+  };
+}
+function readRecipeFormPayload(){
+  const ings = readRecipeIngsFromForm();
+  const batch = readRecipeBatchCostsFromForm();
+  const packaging = readPackagingFromForm('m-rpack-rows');
+  const steps = readStepsFromForm();
+  return {
+    name: document.getElementById('m-rname').value.trim(),
+    yield: document.getElementById('m-ryield').value || '1 unit',
+    sellPrice: parseFloat(document.getElementById('m-rprice').value) || 0,
+    description: document.getElementById('m-rdesc').value.trim(),
+    photoUrl: _recipePhotoUrl || '',
+    steps,
+    packaging,
+    ingredients: ings,
+    ...batch
   };
 }
 async function saveRecipe(){
-  const name=document.getElementById('m-rname').value.trim(); if(!name) return alert('Please enter a recipe name.');
-  const ings = readRecipeIngsFromForm();
-  if (ings.length === 0) return alert('Add at least one ingredient.');
-  const sellPrice=parseFloat(document.getElementById('m-rprice').value)||0;
-  const batch = readRecipeBatchCostsFromForm();
+  const payload = readRecipeFormPayload();
+  if (!payload.name) return alert('Please enter a recipe name.');
+  if (payload.ingredients.length === 0) return alert('Add at least one ingredient.');
   const id = S.nextRecipeId++;
-  const recipe = {
-    id, name,
-    yield: document.getElementById('m-ryield').value || '1 unit',
-    sellPrice,
-    defaultLabour: batch.defaultLabour,
-    defaultElectricity: batch.defaultElectricity,
-    defaultPackingPerUnit: batch.defaultPackingPerUnit,
-    ingredients: ings
-  };
+  const recipe = { id, ...payload, defaultPackingPerUnit: 0 };  // legacy field forced to 0 since we use packaging[]
   S.recipes.push(recipe);
-  logAction('add','Recipe added', `${name} — sell ${fmtMoney(sellPrice)}/unit, ${ings.length} ingredients, batch ${fmtMoney(batch.defaultLabour)}+${fmtMoney(batch.defaultElectricity)}+${fmtMoney(batch.defaultPackingPerUnit)}/u`, 'recipe', id);
+  const packTotal = payload.packaging.reduce((s,p)=>s+Number(p.price||0),0);
+  logAction('add','Recipe added',
+    `${recipe.name} — sell ${fmtMoney(recipe.sellPrice)}/unit, ${recipe.ingredients.length} ingredients, batch ${fmtMoney(payload.defaultLabour)}+${fmtMoney(payload.defaultElectricity)}+${fmtMoney(payload.defaultOverhead)} +pack ${fmtMoney(packTotal)}/u`,
+    'recipe', id);
   closeModal(); renderRecipes();
   await persistWrite('addRecipe', recipe, activityLog[0]);
 }
 async function saveEditRecipe(id){
   const r = getRecipe(id);
   if (!r) return;
-  const name=document.getElementById('m-rname').value.trim(); if(!name) return alert('Please enter a recipe name.');
-  const ings = readRecipeIngsFromForm();
-  if (ings.length === 0) return alert('Add at least one ingredient.');
-  const batch = readRecipeBatchCostsFromForm();
-  // Capture before-state for audit
-  const before = { name: r.name, yield: r.yield, sellPrice: r.sellPrice, defaultLabour: r.defaultLabour, defaultElectricity: r.defaultElectricity, defaultPackingPerUnit: r.defaultPackingPerUnit };
-  const after  = { name, yield: document.getElementById('m-ryield').value || '1 unit', sellPrice: parseFloat(document.getElementById('m-rprice').value) || 0, ...batch };
+  const payload = readRecipeFormPayload();
+  if (!payload.name) return alert('Please enter a recipe name.');
+  if (payload.ingredients.length === 0) return alert('Add at least one ingredient.');
+  // Capture before-state for audit (scalar fields only — packaging/steps tracked but not diffed deeply)
+  const before = {
+    name: r.name, yield: r.yield, sellPrice: r.sellPrice,
+    defaultLabour: r.defaultLabour, defaultElectricity: r.defaultElectricity,
+    defaultOverhead: r.defaultOverhead, description: r.description, photoUrl: r.photoUrl
+  };
+  const after = {
+    name: payload.name, yield: payload.yield, sellPrice: payload.sellPrice,
+    defaultLabour: payload.defaultLabour, defaultElectricity: payload.defaultElectricity,
+    defaultOverhead: payload.defaultOverhead, description: payload.description, photoUrl: payload.photoUrl
+  };
   const fieldChanges = diffFields(before, after);
-  Object.assign(r, after, { ingredients: ings });
-  logAction('edit','Recipe updated', `${name} — sell ${fmtMoney(r.sellPrice)}/unit, ${ings.length} ingredients`, 'recipe', id, fieldChanges);
+  Object.assign(r, payload, { defaultPackingPerUnit: 0 });
+  logAction('edit','Recipe updated', `${r.name} — sell ${fmtMoney(r.sellPrice)}/unit, ${payload.ingredients.length} ingredients`, 'recipe', id, fieldChanges);
   closeModal(); renderRecipes();
-  await persistWrite('editRecipe',
-    { id, name: r.name, yield: r.yield, sellPrice: r.sellPrice, ...batch, ingredients: ings },
-    activityLog[0]
-  );
+  await persistWrite('editRecipe', { id, ...payload, defaultPackingPerUnit: 0 }, activityLog[0]);
 }
 // Compute before→after diff for audit log; returns null if nothing changed.
 function diffFields(before, after){
@@ -1829,14 +2497,28 @@ function showViewRecipe(id){
   }).join('');
   const margin = r.sellPrice > 0 ? Math.round((r.sellPrice - cost) / r.sellPrice * 100) : 0;
   const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
+  const packaging = Array.isArray(r.packaging) ? r.packaging : [];
+  const packTotalPerUnit = packaging.reduce((s,p)=>s+Number(p.price||0),0);
+  const steps = Array.isArray(r.steps) ? r.steps : [];
   showModal(`<div class="modal-title">${esc(r.name)}</div>
+    ${r.photoUrl ? `<img src="${esc(r.photoUrl)}" alt="${esc(r.name)}" style="width:100%;max-height:260px;object-fit:cover;border-radius:8px;margin-bottom:12px">` : ''}
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Yield: ${esc(r.yield)}</div>
+    ${r.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;padding:10px 12px;background:var(--surface-soft);border-radius:6px;border-left:3px solid var(--caramel);white-space:pre-wrap">${esc(r.description)}</div>` : ''}
+    ${steps.length ? `
+      <div class="modal-section-title">Method</div>
+      <ol style="margin:0 0 12px 1.4rem;padding:0;font-size:13px;line-height:1.6">
+        ${steps.map(s => `<li style="margin:4px 0">${esc(s)}</li>`).join('')}
+      </ol>` : ''}
     <div class="modal-section-title">Ingredients</div>
     ${rows}
     <div class="modal-section-title">Batch costs <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— default per order</span></div>
     <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(r.defaultLabour ?? 20)}</span></div>
     <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(r.defaultElectricity ?? 5)}</span></div>
-    <div class="kv-row"><span class="kv-label">Packing per unit</span><span class="kv-value">${fmtMoney(r.defaultPackingPerUnit ?? 2)}</span></div>
+    <div class="kv-row"><span class="kv-label">Overhead</span><span class="kv-value">${fmtMoney(r.defaultOverhead ?? 5)}</span></div>
+    <div class="modal-section-title">Packaging per unit <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— charged per cake</span></div>
+    ${packaging.length ? packaging.map(p => `<div class="kv-row"><span class="kv-label">${esc(p.item)}</span><span class="kv-value">${fmtMoney(p.price)}</span></div>`).join('')
+      : '<div style="font-size:12px;color:var(--text-muted);padding:6px 0">No packaging items defined.</div>'}
+    ${packaging.length ? `<div class="kv-row" style="font-weight:600"><span>Packaging total / unit</span><span>${fmtMoney(packTotalPerUnit)}</span></div>` : ''}
     <div class="totals-block">
       <div class="kv-row"><span class="kv-label">Ingredient cost</span><span class="kv-value">${fmtMoney(cost)}</span></div>
       <div class="kv-row" style="color:var(--success);font-weight:600"><span>Suggested sell price</span><span>${fmtMoney(r.sellPrice)}</span></div>
@@ -1860,50 +2542,150 @@ function showAddOrder(){
     alert('Add a recipe first — orders need a recipe to compute costing.');
     return;
   }
-  const firstRecipe = S.recipes[0];
-  showModal(`<div class="modal-title">New Order</div>
+  showOrderForm(null, 'Add');
+}
+function showEditOrder(id){
+  const o = S.orders.find(x => x.id === id);
+  if (!o) return;
+  if (o.status !== 'pending') {
+    alert('Only pending orders can be edited. Mark this order Undone first if you need to change it.');
+    return;
+  }
+  showOrderForm(o, 'Edit');
+}
+// Unified order form, used for both Add and Edit. Pass null for a fresh add.
+function showOrderForm(o, mode){
+  const isEdit = mode === 'Edit';
+  const firstRecipe = (o && getRecipe(o.recipeId)) || S.recipes[0];
+  const recipeId = o ? o.recipeId : firstRecipe.id;
+  const recipeOptsHtml = S.recipes.map(r =>
+    `<option value="${r.id}"${r.id === recipeId ? ' selected' : ''}>${esc(r.name)} — ${fmtMoney(r.sellPrice)}</option>`
+  ).join('');
+  // Defaults sourced from order (edit) or the first recipe (add)
+  const valSell   = o ? (o.sellPricePerUnit ?? firstRecipe.sellPrice ?? 0) : (firstRecipe.sellPrice ?? 0);
+  const valLab    = o ? (o.labour ?? firstRecipe.defaultLabour ?? 20)      : (firstRecipe.defaultLabour ?? 20);
+  const valElec   = o ? (o.electricity ?? firstRecipe.defaultElectricity ?? 5) : (firstRecipe.defaultElectricity ?? 5);
+  const valOver   = o ? (o.overhead ?? firstRecipe.defaultOverhead ?? 5)   : (firstRecipe.defaultOverhead ?? 5);
+  const valTrans  = o ? (o.transportCost ?? 0) : 0;
+  const valQty    = o ? o.qty : 1;
+  const valDue    = o ? (dateKey(o.dueDate) || today()) : today();
+  const valNote   = o ? o.note : '';
+  const startPackaging = o
+    ? (Array.isArray(o.packaging) ? o.packaging : [])
+    : (Array.isArray(firstRecipe.packaging) ? firstRecipe.packaging : []);
+  const startAddons = o && Array.isArray(o.addons) ? o.addons : [];
+
+  showModal(`<div class="modal-title">${mode === 'Edit' ? 'Edit Order #' + o.id : 'New Order'}</div>
     <div class="modal-section-title">Customer</div>
     <div class="form-row">
-      <div class="form-group"><label>Name</label><input id="m-ocust" placeholder="Customer name"></div>
-      <div class="form-group"><label>Phone</label><input id="m-ophone" placeholder="+65 ..."></div>
+      <div class="form-group"><label>Name</label><input id="m-ocust" value="${esc(o?.customer || '')}" placeholder="Customer name"></div>
+      <div class="form-group"><label>Phone</label><input id="m-ophone" value="${esc(o?.customerPhone || '')}" placeholder="+65 ..."></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email"></div>
-      <div class="form-group"><label>Address (optional)</label><input id="m-oaddr" placeholder="For delivery"></div>
+      <div class="form-group"><label>Email (optional)</label><input id="m-oemail" type="email" value="${esc(o?.customerEmail || '')}"></div>
+      <div class="form-group"><label>Address (optional)</label><input id="m-oaddr" value="${esc(o?.customerAddress || '')}" placeholder="For delivery"></div>
     </div>
     <div class="modal-section-title">Order</div>
     <div class="form-row">
-      <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="onOrderRecipeChanged()">${recipeOpts()}</select></div>
-      <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="1" min="1" oninput="updateOrderHelper()"></div>
-      <div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Recipe</label><select id="m-orec" onchange="onOrderRecipeChanged()">${recipeOptsHtml}</select></div>
+      <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="${valQty}" min="1" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${valDue}"></div>
     </div>
-    <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" placeholder="Special requests..."></div></div>
+    <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" value="${esc(valNote)}" placeholder="Special requests..."></div></div>
+
     <div class="modal-section-title">Pricing &amp; cost <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pre-filled from recipe, editable per order</span></div>
     <div class="form-row">
-      <div class="form-group"><label>Sell / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${firstRecipe.sellPrice || 0}" oninput="updateOrderHelper()"></div>
-      <div class="form-group"><label>Labour (${CURRENCY})</label><input id="m-olabour" type="number" step="0.01" value="${firstRecipe.defaultLabour ?? 20}" oninput="updateOrderHelper()"></div>
-      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${firstRecipe.defaultElectricity ?? 5}" oninput="updateOrderHelper()"></div>
+      <div class="form-group"><label>Sell / unit (${CURRENCY})</label><input id="m-osell" type="number" step="0.01" value="${valSell}" oninput="updateOrderHelper()"></div>
+      <div class="form-group">
+        <label>Labour (${CURRENCY})</label>
+        <input id="m-olabour" type="number" step="0.01" value="${valLab}" oninput="updateOrderHelper()">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-olabour-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-olabour')">
+          <span>×</span>
+          <input id="m-olabour-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-olabour')">
+          <span>/hr</span>
+        </div>
+      </div>
+      <div class="form-group"><label>Electricity (${CURRENCY})</label><input id="m-oelec" type="number" step="0.01" value="${valElec}" oninput="updateOrderHelper()"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Packing / unit (${CURRENCY})</label><input id="m-opack" type="number" step="0.01" value="${firstRecipe.defaultPackingPerUnit ?? 2}" oninput="updateOrderHelper()"></div>
-      <div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="0" oninput="updateOrderHelper()"></div>
+      <div class="form-group">
+        <label>Overhead (${CURRENCY})</label>
+        <input id="m-oover" type="number" step="0.01" value="${valOver}" oninput="updateOrderHelper()">
+        <div style="display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--text-muted);align-items:center">
+          <span>or</span>
+          <input id="m-oover-hours" type="number" placeholder="hrs" step="0.1" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-oover')">
+          <span>×</span>
+          <input id="m-oover-rate" type="number" placeholder="rate" step="0.5" style="width:60px;padding:4px 6px;font-size:11px" oninput="autoFillOrderFromHours('m-oover')">
+          <span>/hr</span>
+        </div>
+      </div>
+      <div class="form-group"><label>Transport (${CURRENCY})</label><input id="m-otrans" type="number" step="0.01" value="${valTrans}" oninput="updateOrderHelper()"></div>
     </div>
-    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px">Transport is invoiced to the customer separately — not part of cake cost or margin.</div>
+    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px">Transport is invoiced separately — not part of cake cost or cake margin.</div>
+
+    <div class="modal-section-title">Packaging items <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— per cake, charged ${valQty}× automatically</span></div>
+    <div id="m-opack-rows"></div>
+    <button class="btn btn-sm" onclick="addPackagingRow('m-opack-rows');updateOrderHelper()" style="margin-bottom:12px">+ Add packaging item</button>
+
+    <div class="modal-section-title">Add-ons <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— toppers, candles, decorations…</span></div>
+    <div id="m-oaddon-rows"></div>
+    <button class="btn btn-sm" onclick="addAddonRow('m-oaddon-rows');updateOrderHelper()" style="margin-bottom:12px">+ Add line</button>
+
     <div id="order-helper" class="totals-block"></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="saveOrder()">Place order</button>
+      <button class="btn btn-primary" onclick="${isEdit ? `saveEditOrder(${o.id})` : 'saveOrder()'}">${isEdit ? 'Save changes' : 'Place order'}</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
     </div>`, { wide: true });
+  // Populate packaging rows
+  if (startPackaging.length) startPackaging.forEach(p => addPackagingRow('m-opack-rows', p));
+  // Populate add-ons
+  startAddons.forEach(a => addAddonRow('m-oaddon-rows', a));
   updateOrderHelper();
 }
-// Recipe change handler — refills the cost fields from the new recipe's defaults.
+// Recipe change handler — refills the cost fields AND packaging from the new recipe's defaults.
 function onOrderRecipeChanged(){
   const r = getRecipe(parseInt(document.getElementById('m-orec').value));
   if (!r) return;
   document.getElementById('m-osell').value   = r.sellPrice || 0;
   document.getElementById('m-olabour').value = r.defaultLabour ?? 20;
   document.getElementById('m-oelec').value   = r.defaultElectricity ?? 5;
-  document.getElementById('m-opack').value   = r.defaultPackingPerUnit ?? 2;
+  document.getElementById('m-oover').value   = r.defaultOverhead ?? 5;
+  // Re-load packaging from the new recipe
+  document.getElementById('m-opack-rows').innerHTML = '';
+  (Array.isArray(r.packaging) ? r.packaging : []).forEach(p => addPackagingRow('m-opack-rows', p));
+  updateOrderHelper();
+}
+function addAddonRow(containerId, prefill){
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  const name = (prefill && prefill.name) || '';
+  const qty  = prefill && prefill.qty != null ? prefill.qty : 1;
+  const price = prefill && prefill.price != null ? prefill.price : 0;
+  const cost  = prefill && prefill.cost != null ? prefill.cost : 0;
+  div.innerHTML = `
+    <input class="addon-name" type="text" placeholder="Add-on (e.g. Cake topper)" value="${esc(name)}" style="flex:1;min-width:140px" oninput="updateOrderHelper()">
+    <input class="addon-qty" type="number" step="1" min="1" value="${qty}" placeholder="Qty" style="flex:0 0 60px;width:60px" oninput="updateOrderHelper()">
+    <input class="addon-price" type="number" step="0.01" value="${price}" placeholder="Price each" style="flex:0 0 90px;width:90px" oninput="updateOrderHelper()">
+    <input class="addon-cost" type="number" step="0.01" value="${cost}" placeholder="Cost each" style="flex:0 0 90px;width:90px" oninput="updateOrderHelper()">
+    <button class="btn btn-sm btn-danger" onclick="this.parentElement.remove();updateOrderHelper()">×</button>`;
+  document.getElementById(containerId).appendChild(div);
+}
+function readAddonsFromForm(containerId){
+  const out = [];
+  document.querySelectorAll('#' + containerId + ' .ing-row').forEach(row => {
+    const name = row.querySelector('.addon-name').value.trim();
+    const qty   = parseFloat(row.querySelector('.addon-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.addon-price').value) || 0;
+    const cost  = parseFloat(row.querySelector('.addon-cost').value) || 0;
+    if (name && qty > 0) out.push({ name, qty, price, cost });
+  });
+  return out;
+}
+// Same as autoFillFromHours but ALSO triggers the order helper refresh
+function autoFillOrderFromHours(targetId){
+  autoFillFromHours(targetId);
   updateOrderHelper();
 }
 function updateOrderHelper(){
@@ -1913,24 +2695,42 @@ function updateOrderHelper(){
   const sellPerU  = parseFloat(document.getElementById('m-osell').value) || 0;
   const labour    = parseFloat(document.getElementById('m-olabour').value) || 0;
   const elec      = parseFloat(document.getElementById('m-oelec').value) || 0;
-  const packPerU  = parseFloat(document.getElementById('m-opack').value) || 0;
+  const overhead  = parseFloat(document.getElementById('m-oover').value) || 0;
   const transport = parseFloat(document.getElementById('m-otrans').value) || 0;
   if (!r) { el.textContent = 'Pick a recipe.'; return; }
+  const packaging = readPackagingFromForm('m-opack-rows');
+  const packPerUnit = packaging.reduce((s,p)=>s+Number(p.price||0),0);
+  const addons = readAddonsFromForm('m-oaddon-rows');
   const ingredientCost = calcIngCost(r) * qty;
-  const cakeCost = ingredientCost + labour + elec + (packPerU * qty);
-  const revenue  = sellPerU * qty;
-  const profit   = revenue - cakeCost;
-  const margin   = revenue > 0 ? Math.round(profit / revenue * 100) : 0;
-  const invoiceTotal = revenue + transport;
-  const marginColor = margin >= 40 ? 'var(--success)' : margin >= 20 ? 'var(--warning)' : 'var(--danger)';
+  const packagingTotal = packPerUnit * qty;
+  const cakeCost = ingredientCost + labour + elec + overhead + packagingTotal;
+  const cakeRevenue = sellPerU * qty;
+  const cakeProfit  = cakeRevenue - cakeCost;
+  const cakeMargin  = cakeRevenue > 0 ? Math.round(cakeProfit / cakeRevenue * 100) : 0;
+  const addonRevenue = addons.reduce((s,a)=>s+(a.price*a.qty),0);
+  const addonCost    = addons.reduce((s,a)=>s+(a.cost *a.qty),0);
+  const totalRevenue = cakeRevenue + addonRevenue;
+  const totalCost    = cakeCost   + addonCost;
+  const totalProfit  = totalRevenue - totalCost;
+  const totalMargin  = totalRevenue > 0 ? Math.round(totalProfit / totalRevenue * 100) : 0;
+  const invoiceTotal = totalRevenue + transport;
+  const cakeColor    = cakeMargin  >= 40 ? 'var(--success)' : cakeMargin  >= 20 ? 'var(--warning)' : 'var(--danger)';
+  const totalColor   = totalMargin >= 40 ? 'var(--success)' : totalMargin >= 20 ? 'var(--warning)' : 'var(--danger)';
   el.innerHTML = `
     <div class="kv-row"><span class="kv-label">Ingredients (${qty}×)</span><span class="kv-value">${fmtMoney(ingredientCost)}</span></div>
     <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(labour)}</span></div>
     <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(elec)}</span></div>
-    <div class="kv-row"><span class="kv-label">Packing (${qty}× ${fmtMoney(packPerU)})</span><span class="kv-value">${fmtMoney(packPerU * qty)}</span></div>
+    <div class="kv-row"><span class="kv-label">Overhead</span><span class="kv-value">${fmtMoney(overhead)}</span></div>
+    <div class="kv-row"><span class="kv-label">Packaging (${qty}× ${fmtMoney(packPerUnit)})</span><span class="kv-value">${fmtMoney(packagingTotal)}</span></div>
     <div class="kv-row" style="border-top:1px solid var(--border);margin-top:4px;font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
-    <div class="kv-row"><span class="kv-label">Sell (${qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value">${fmtMoney(revenue)}</span></div>
-    <div class="kv-row" style="font-weight:600;color:${marginColor}"><span>Cake profit</span><span>${fmtMoney(profit)} (${margin}%)</span></div>
+    <div class="kv-row"><span class="kv-label">Cake sell (${qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value">${fmtMoney(cakeRevenue)}</span></div>
+    <div class="kv-row" style="font-weight:600;color:${cakeColor}"><span>Cake profit</span><span>${fmtMoney(cakeProfit)} (${cakeMargin}%)</span></div>
+    ${addons.length ? `
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0 4px"></div>
+      <div class="kv-row"><span class="kv-label">Add-on revenue</span><span class="kv-value">${fmtMoney(addonRevenue)}</span></div>
+      <div class="kv-row"><span class="kv-label">Add-on cost</span><span class="kv-value">${fmtMoney(addonCost)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Total profit (cake + add-ons)</span><span style="color:${totalColor}">${fmtMoney(totalProfit)} (${totalMargin}%)</span></div>
+    ` : ''}
     <div style="border-top:1px dashed var(--border-light);margin:8px 0 0"></div>
     <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
     <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>`;
@@ -1959,45 +2759,86 @@ function buildOrderSnapshot(recipe, orderQty){
   const ingredientCost = lines.reduce((s,l)=>s+l.lineCost,0);
   return { lines, ingredientCost };
 }
-async function saveOrder(){
-  const customer=document.getElementById('m-ocust').value.trim(); if(!customer) return alert('Customer name required.');
-  const customerPhone=document.getElementById('m-ophone').value.trim();
-  const customerEmail=document.getElementById('m-oemail').value.trim();
-  const customerAddress=document.getElementById('m-oaddr').value.trim();
-  const recipeId=parseInt(document.getElementById('m-orec').value);
-  const qty=parseInt(document.getElementById('m-oqty').value)||1;
-  const r=getRecipe(recipeId);
-  if (!r) return alert('Pick a recipe.');
-  // Pull the editable cost fields
+// Read the full order form payload (used by both save and saveEdit)
+function readOrderFormPayload(){
+  const customer = document.getElementById('m-ocust').value.trim();
+  if (!customer) { alert('Customer name required.'); return null; }
+  const recipeId = parseInt(document.getElementById('m-orec').value);
+  const r = getRecipe(recipeId);
+  if (!r) { alert('Pick a recipe.'); return null; }
+  const qty = parseInt(document.getElementById('m-oqty').value) || 1;
   const sellPricePerUnit = parseFloat(document.getElementById('m-osell').value) || 0;
   const labour           = parseFloat(document.getElementById('m-olabour').value) || 0;
   const electricity      = parseFloat(document.getElementById('m-oelec').value) || 0;
-  const packingPerUnit   = parseFloat(document.getElementById('m-opack').value) || 0;
+  const overhead         = parseFloat(document.getElementById('m-oover').value) || 0;
   const transportCost    = parseFloat(document.getElementById('m-otrans').value) || 0;
+  const packaging = readPackagingFromForm('m-opack-rows');
+  const addons    = readAddonsFromForm('m-oaddon-rows');
   const snap = buildOrderSnapshot(r, qty);
-  const cakeCost = snap.ingredientCost + labour + electricity + (packingPerUnit * qty);
-  const id = S.nextOrderId++;
-  const order = {
-    id,
-    customer, customerPhone, customerEmail, customerAddress,
+  const packagingTotal = packaging.reduce((s,p)=>s+Number(p.price||0),0) * qty;
+  const cakeCost = snap.ingredientCost + labour + electricity + overhead + packagingTotal;
+  return {
+    customer,
+    customerPhone:   document.getElementById('m-ophone').value.trim(),
+    customerEmail:   document.getElementById('m-oemail').value.trim(),
+    customerAddress: document.getElementById('m-oaddr').value.trim(),
     recipeId, qty,
     note: document.getElementById('m-onote').value,
     dueDate: document.getElementById('m-odate').value,
-    status: 'pending',
     sellPricePerUnit,
-    sellPriceSnapshot: sellPricePerUnit,  // alias retained for any in-memory consumers
-    labour, electricity, packingPerUnit, transportCost,
+    sellPriceSnapshot: sellPricePerUnit,
+    labour, electricity, overhead,
+    packingPerUnit: null,  // legacy column — we no longer write it; packaging[] is the new path
+    packaging,
+    addons,
+    transportCost,
     ingredientCost: snap.ingredientCost,
     cakeCost,
     ingredientSnapshot: snap.lines,
-    completedDate: ''
+    recipe: r  // ephemeral; for logging only — strip before persist
   };
+}
+async function saveOrder(){
+  const p = readOrderFormPayload(); if (!p) return;
+  const id = S.nextOrderId++;
+  const { recipe, ...orderRest } = p;
+  const order = { id, status: 'pending', completedDate: '', ...orderRest };
   S.orders.push(order);
-  const revenue = sellPricePerUnit * qty;
-  const profit  = revenue - cakeCost;
-  logAction('order','Order placed', `${customer} — ${r.name} × ${qty}, sell ${fmtMoney(revenue)}, cake cost ${fmtMoney(cakeCost)}, profit ${fmtMoney(profit)}`, 'order', id);
+  const revenue = p.sellPricePerUnit * p.qty;
+  const profit  = revenue - p.cakeCost;
+  logAction('order','Order placed', `${p.customer} — ${recipe.name} × ${p.qty}, sell ${fmtMoney(revenue)}, cake cost ${fmtMoney(p.cakeCost)}, profit ${fmtMoney(profit)}`, 'order', id);
   closeModal(); renderOrders();
   await persistWrite('addOrder', order, activityLog[0]);
+}
+async function saveEditOrder(id){
+  const existing = S.orders.find(x => x.id === id);
+  if (!existing) return;
+  if (existing.status !== 'pending') {
+    showToast('Order is no longer pending — Mark Undone first to edit.', 'error');
+    return;
+  }
+  const p = readOrderFormPayload(); if (!p) return;
+  const { recipe, ...orderRest } = p;
+  // Capture before/after for audit
+  const before = {
+    customer: existing.customer, qty: existing.qty,
+    sellPricePerUnit: existing.sellPricePerUnit,
+    labour: existing.labour, electricity: existing.electricity, overhead: existing.overhead,
+    transportCost: existing.transportCost, cakeCost: existing.cakeCost,
+    recipeId: existing.recipeId, dueDate: dateKey(existing.dueDate)
+  };
+  const after = {
+    customer: p.customer, qty: p.qty,
+    sellPricePerUnit: p.sellPricePerUnit,
+    labour: p.labour, electricity: p.electricity, overhead: p.overhead,
+    transportCost: p.transportCost, cakeCost: p.cakeCost,
+    recipeId: p.recipeId, dueDate: p.dueDate
+  };
+  const fieldChanges = diffFields(before, after);
+  Object.assign(existing, orderRest);
+  logAction('edit','Order updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}, cake cost ${fmtMoney(p.cakeCost)}`, 'order', id, fieldChanges);
+  closeModal(); renderOrders();
+  await persistWrite('editOrder', { id, ...orderRest }, activityLog[0]);
 }
 async function cycleStatus(id){
   const o=S.orders.find(x=>x.id===id); if(!o) return;
@@ -2044,21 +2885,35 @@ function showOrderDetail(id){
   const o = S.orders.find(x => x.id === id); if (!o) return;
   const r = getRecipe(o.recipeId);
   const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
-  const sell = sellPerU * o.qty;
+  const cakeRevenue = sellPerU * o.qty;
   const ingCost   = parseFloat(o.ingredientCost) || 0;
-  const labour    = o.labour    != null ? parseFloat(o.labour)         : null;
-  const elec      = o.electricity != null ? parseFloat(o.electricity)  : null;
+  const labour    = o.labour      != null ? parseFloat(o.labour)      : null;
+  const elec      = o.electricity != null ? parseFloat(o.electricity) : null;
+  const overhead  = o.overhead    != null ? parseFloat(o.overhead)    : null;
   const packPerU  = o.packingPerUnit != null ? parseFloat(o.packingPerUnit) : null;
+  const packaging = Array.isArray(o.packaging) ? o.packaging : [];
+  const addons    = Array.isArray(o.addons) ? o.addons : [];
   const transport = parseFloat(o.transportCost) || 0;
+  // Compute packaging total: prefer the new packaging[] list, fall back to legacy packing_per_unit × qty
+  const packagingTotal = packaging.length
+    ? packaging.reduce((s,p)=>s+Number(p.price||0),0) * o.qty
+    : (packPerU != null ? packPerU * o.qty : 0);
   // cakeCost = snapshot stored value when available, else compute from parts
-  const cakeCost  = parseFloat(o.cakeCost)
-    || (ingCost + (labour ?? 0) + (elec ?? 0) + ((packPerU ?? 0) * o.qty));
-  const profit    = sell - cakeCost;
-  const margin    = sell > 0 ? Math.round(profit / sell * 100) : 0;
-  const invoiceTotal = sell + transport;
+  const cakeCost = parseFloat(o.cakeCost) || (ingCost + (labour ?? 0) + (elec ?? 0) + (overhead ?? 0) + packagingTotal);
+  const cakeProfit = cakeRevenue - cakeCost;
+  const cakeMargin = cakeRevenue > 0 ? Math.round(cakeProfit / cakeRevenue * 100) : 0;
+  const addonRevenue = addons.reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
+  const addonCost    = addons.reduce((s,a)=>s+Number(a.cost ||0)*Number(a.qty||0),0);
+  const totalRevenue = cakeRevenue + addonRevenue;
+  const totalCost    = cakeCost   + addonCost;
+  const totalProfit  = totalRevenue - totalCost;
+  const totalMargin  = totalRevenue > 0 ? Math.round(totalProfit / totalRevenue * 100) : 0;
+  const invoiceTotal = totalRevenue + transport;
   const lines = Array.isArray(o.ingredientSnapshot) ? o.ingredientSnapshot : [];
-  const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
-  const isLegacy = labour == null && elec == null && packPerU == null;
+  const cakeColor  = cakeMargin  >= 40 ? 'var(--success)' : cakeMargin  >= 20 ? 'var(--warning)' : 'var(--danger)';
+  const totalColor = totalMargin >= 40 ? 'var(--success)' : totalMargin >= 20 ? 'var(--warning)' : 'var(--danger)';
+  const isLegacy = labour == null && elec == null && packPerU == null && packaging.length === 0;
+  const editVisible = o.status === 'pending';
   showModal(`<div class="modal-title">Order #${o.id} — ${esc(o.customer)}</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
       ${o.customerPhone ? `📞 ${esc(o.customerPhone)} &nbsp; ` : ''}
@@ -2077,21 +2932,40 @@ function showOrderDetail(id){
       : lines.map(l => `<div class="kv-row"><span class="kv-label">${esc(l.name)} <span style="color:var(--text-muted)">— ${l.qtyEntered} ${esc(l.unit)}</span></span><span class="kv-value">${fmtMoney(l.lineCost)}</span></div>`).join('')}
     ${isLegacy ? '' : `
     <div class="modal-section-title">Batch costs</div>
-    <div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(labour)}</span></div>
-    <div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(elec)}</span></div>
-    <div class="kv-row"><span class="kv-label">Packing (${o.qty} × ${fmtMoney(packPerU)})</span><span class="kv-value">${fmtMoney((packPerU||0) * o.qty)}</span></div>
+    ${labour   != null ? `<div class="kv-row"><span class="kv-label">Labour</span><span class="kv-value">${fmtMoney(labour)}</span></div>` : ''}
+    ${elec     != null ? `<div class="kv-row"><span class="kv-label">Electricity</span><span class="kv-value">${fmtMoney(elec)}</span></div>` : ''}
+    ${overhead != null ? `<div class="kv-row"><span class="kv-label">Overhead</span><span class="kv-value">${fmtMoney(overhead)}</span></div>` : ''}
     `}
+    ${packaging.length ? `
+    <div class="modal-section-title">Packaging (${o.qty}× per cake)</div>
+    ${packaging.map(p => `<div class="kv-row"><span class="kv-label">${esc(p.item)} <span style="color:var(--text-muted)">@ ${fmtMoney(p.price)}</span></span><span class="kv-value">${fmtMoney(Number(p.price||0) * o.qty)}</span></div>`).join('')}
+    <div class="kv-row" style="font-weight:600"><span>Packaging total</span><span>${fmtMoney(packagingTotal)}</span></div>
+    ` : (packPerU != null ? `
+    <div class="modal-section-title">Packaging</div>
+    <div class="kv-row"><span class="kv-label">Packing (${o.qty} × ${fmtMoney(packPerU)})</span><span class="kv-value">${fmtMoney(packPerU * o.qty)}</span></div>
+    ` : '')}
+    ${addons.length ? `
+    <div class="modal-section-title">Add-ons</div>
+    ${addons.map(a => `<div class="kv-row"><span class="kv-label">${esc(a.name)} <span style="color:var(--text-muted)">× ${a.qty} @ ${fmtMoney(a.price)}</span></span><span class="kv-value">${fmtMoney(Number(a.price||0) * Number(a.qty||0))}</span></div>`).join('')}
+    <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Add-on cost</span><span>${fmtMoney(addonCost)}</span></div>
+    ` : ''}
     <div class="totals-block">
       <div class="kv-row" style="font-weight:600"><span>Total cake cost</span><span>${fmtMoney(cakeCost)}</span></div>
-      <div class="kv-row" style="color:var(--success)"><span class="kv-label">Sell (${o.qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value" style="font-weight:600">${fmtMoney(sell)}</span></div>
-      <div class="kv-row" style="font-weight:600"><span>Cake profit</span><span style="color:${marginColor}">${fmtMoney(profit)} (${margin}%)</span></div>
+      <div class="kv-row" style="color:var(--success)"><span class="kv-label">Cake sell (${o.qty} × ${fmtMoney(sellPerU)})</span><span class="kv-value" style="font-weight:600">${fmtMoney(cakeRevenue)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Cake profit</span><span style="color:${cakeColor}">${fmtMoney(cakeProfit)} (${cakeMargin}%)</span></div>
+      ${addons.length ? `
+      <div style="border-top:1px dashed var(--border-light);margin:6px 0 4px"></div>
+      <div class="kv-row"><span class="kv-label">Add-on revenue</span><span class="kv-value">${fmtMoney(addonRevenue)}</span></div>
+      <div class="kv-row" style="font-weight:600"><span>Total profit (cake + add-ons)</span><span style="color:${totalColor}">${fmtMoney(totalProfit)} (${totalMargin}%)</span></div>
+      ` : ''}
       <div style="border-top:1px dashed var(--border-light);margin:6px 0 2px"></div>
       <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
       <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
+      ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
       <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">View change log</button>
-      <button class="btn btn-primary" onclick="closeModal()">Close</button>
+      <button class="btn" onclick="closeModal()">Close</button>
     </div>`, { wide: true });
 }
 
@@ -2109,14 +2983,16 @@ async function init() {
       S.recipes = result.recipes || [];
       S.orders = result.orders || [];
       S.shoppingTrips = result.shoppingTrips || [];
+      S.quotations = result.quotations || [];
       S.priceHistory = result.priceHistory || {};
       activityLog.length = 0;
       (result.activityLog || []).forEach(l => activityLog.push(l));
       // Next IDs walk past any existing rows
-      S.nextIngId    = S.ingredients.length    ? Math.max(...S.ingredients.map(i=>i.id))    + 1 : 1;
-      S.nextRecipeId = S.recipes.length        ? Math.max(...S.recipes.map(r=>r.id))        + 1 : 1;
-      S.nextOrderId  = S.orders.length         ? Math.max(...S.orders.map(o=>o.id))         + 1 : 1;
-      S.nextTripId   = S.shoppingTrips.length  ? Math.max(...S.shoppingTrips.map(t=>t.id))  + 1 : 1;
+      S.nextIngId       = S.ingredients.length   ? Math.max(...S.ingredients.map(i=>i.id))   + 1 : 1;
+      S.nextRecipeId    = S.recipes.length       ? Math.max(...S.recipes.map(r=>r.id))       + 1 : 1;
+      S.nextOrderId     = S.orders.length        ? Math.max(...S.orders.map(o=>o.id))        + 1 : 1;
+      S.nextTripId      = S.shoppingTrips.length ? Math.max(...S.shoppingTrips.map(t=>t.id)) + 1 : 1;
+      S.nextQuotationId = S.quotations.length    ? Math.max(...S.quotations.map(q=>q.id))    + 1 : 1;
     } else {
       const err = (result && result.error) || 'unknown error';
       showToast('Could not load data — ' + err, 'error');
