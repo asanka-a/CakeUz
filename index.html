@@ -1588,8 +1588,10 @@ function showQuotationDetail(id){
       ${q.status !== 'accepted' ? `<button class="btn btn-primary" onclick="closeModal();showEditQuotation(${q.id})">Edit</button>` : ''}
       ${q.status !== 'accepted' && q.status !== 'rejected'
         ? `<button class="btn btn-chocolate" onclick="closeModal();convertQuotationToOrder(${q.id})">→ Convert to Order</button>` : ''}
+      <button class="btn" onclick="closeModal();showCloneQuotation(${q.id})">Clone</button>
       <button class="btn" onclick="closeModal();showEntityHistory('quotation', ${q.id}, ${JSON.stringify('Quote #'+q.id+' — '+q.customer)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this quotation? This cannot be undone.')){closeModal();deleteQuotation(${q.id})}">Delete</button>
     </div>`, { wide: true });
 }
 // Convert a quotation → order: snapshot the ingredients freshly, create the order, link the quote
@@ -1840,6 +1842,7 @@ function showCustomerDetail(id){
       <button class="btn btn-primary" onclick="closeModal();showEditCustomer(${id})">Edit</button>
       <button class="btn" onclick="closeModal();showEntityHistory('customer', ${id}, ${JSON.stringify(c.name)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this customer? Their past orders stay; just the link is cleared.')){closeModal();deleteCustomer(${id})}">Delete</button>
     </div>`, { wide: true });
 }
 
@@ -2477,6 +2480,37 @@ function showCloneRecipe(srcId){
   };
   showRecipeForm(clone, 'Add');
 }
+// Clone an order — pre-fills the New Order form from an existing order. Status resets to pending.
+function showCloneOrder(srcId){
+  const src = S.orders.find(x => x.id === srcId);
+  if (!src) return;
+  const clone = {
+    ...src,
+    id: null,
+    status: 'pending',
+    completedDate: '',
+    dueDate: today(),  // fresh due date so the clone isn't dated in the past
+    // Customer link carries over (same person, new order). User can clear it by re-typing the name.
+    packaging: Array.isArray(src.packaging) ? src.packaging.map(p => ({...p})) : [],
+    addons: Array.isArray(src.addons) ? src.addons.map(a => ({...a})) : []
+  };
+  showOrderForm(clone, 'Add');
+}
+// Clone a quotation — pre-fills the New Quotation form from an existing quote.
+function showCloneQuotation(srcId){
+  const src = S.quotations.find(x => x.id === srcId);
+  if (!src) return;
+  const clone = {
+    ...src,
+    id: null,
+    status: 'draft',
+    convertedOrderId: null,
+    validUntil: '',  // user picks a fresh expiry
+    packaging: Array.isArray(src.packaging) ? src.packaging.map(p => ({...p})) : [],
+    addons: Array.isArray(src.addons) ? src.addons.map(a => ({...a})) : []
+  };
+  showQuotationForm(clone, 'Add');
+}
 // Hold the in-progress photo URL across input events (set by the file input change handler)
 let _recipePhotoUrl = '';
 function showRecipeForm(r, mode){
@@ -2805,8 +2839,10 @@ function showViewRecipe(id){
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="closeModal();showEditRecipe(${id})">Edit</button>
-      <button class="btn" onclick="closeModal();showEntityHistory('recipe', ${id}, ${JSON.stringify(r.name)})">View change log</button>
+      <button class="btn" onclick="closeModal();showCloneRecipe(${id})">Clone</button>
+      <button class="btn" onclick="closeModal();showEntityHistory('recipe', ${id}, ${JSON.stringify(r.name)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this recipe? Past orders keep their cost snapshot, so this is safe.')){closeModal();deleteRecipe(${id})}">Delete</button>
     </div>`, { wide: true });
 }
 async function deleteRecipe(id){
@@ -3312,8 +3348,10 @@ function showOrderDetail(id){
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
-      <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">View change log</button>
+      <button class="btn" onclick="closeModal();showCloneOrder(${o.id})">Clone</button>
+      <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this order? This cannot be undone.')){closeModal();deleteOrder(${o.id})}">Delete</button>
     </div>`, { wide: true });
 }
 
