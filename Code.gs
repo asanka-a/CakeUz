@@ -25,11 +25,13 @@ const BACKUP_HOUR = 23;   // 23 = 11 PM Asia/Singapore
 const BACKUP_TZ   = 'Asia/Singapore';
 
 const TABLES = [
+  'customers',
   'ingredients',
   'price_history',
   'recipes',
   'recipe_ingredients',
   'orders',
+  'quotations',
   'shopping_trips',
   'shopping_items',
   'activity_log'
