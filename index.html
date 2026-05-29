@@ -542,14 +542,38 @@ async function sbEditRecipe(d) {
 }
 
 // Upload a recipe photo file to Supabase Storage. Returns the public URL or null on error.
-async function uploadRecipePhoto(file, recipeIdHint) {
+const RECIPE_PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const RECIPE_PHOTO_ALLOWED = ['image/jpeg','image/png','image/webp','image/gif'];
+// Extract the storage object path (relative to the bucket) from a public URL we previously stored.
+function recipePhotoPathFromUrl(url) {
+  if (!url) return null;
+  const marker = '/recipe-photos/';
+  const idx = String(url).indexOf(marker);
+  if (idx < 0) return null;
+  return decodeURIComponent(String(url).slice(idx + marker.length).split('?')[0]);
+}
+async function uploadRecipePhoto(file, recipeIdHint, oldUrl) {
   if (!file) return null;
+  // Type / size guard — keeps the public bucket from accumulating junk
+  if (file.type && !RECIPE_PHOTO_ALLOWED.includes(file.type)) {
+    showToast('Photo must be an image (JPEG / PNG / WebP / GIF).', 'error');
+    return null;
+  }
+  if (file.size && file.size > RECIPE_PHOTO_MAX_BYTES) {
+    showToast(`Photo too large (max ${Math.round(RECIPE_PHOTO_MAX_BYTES / 1024 / 1024)} MB).`, 'error');
+    return null;
+  }
   const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : 'jpg';
   const path = `${recipeIdHint || 'new'}-${Date.now()}.${ext}`;
   const { error } = await sb.storage.from('recipe-photos').upload(path, file, {
     cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg'
   });
   if (error) { showToast('Photo upload failed: ' + error.message, 'error'); return null; }
+  // Best-effort cleanup of the previous photo (only if it lived in our bucket)
+  const oldPath = recipePhotoPathFromUrl(oldUrl);
+  if (oldPath && oldPath !== path) {
+    sb.storage.from('recipe-photos').remove([oldPath]).catch(e => console.warn('Old photo cleanup failed:', e));
+  }
   const { data } = sb.storage.from('recipe-photos').getPublicUrl(path);
   return data.publicUrl;
 }
@@ -616,6 +640,15 @@ async function sbUpdateOrderStatus(d) {
   return { ok: true };
 }
 async function sbDeleteOrder(d) {
+  // If the deleted order was Done, restore the stock that had been deducted
+  if (Array.isArray(d.stockDeltas)) {
+    for (const delta of d.stockDeltas) {
+      const { data: ing, error: ge } = await sb.from('ingredients').select('stock').eq('id', delta.ingId).single();
+      if (ge || !ing) continue;
+      const newStock = Math.round((Number(ing.stock) + Number(delta.delta)) * 1000) / 1000;
+      await sb.from('ingredients').update({ stock: newStock }).eq('id', delta.ingId);
+    }
+  }
   const { error } = await sb.from('orders').delete().eq('id', d.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
@@ -732,9 +765,12 @@ async function sbClearLog() {
 
 // ── CUSTOMERS ─────────────────────────────────────────────────
 function customerRowFromForm(d) {
+  // Normalize phone before persisting so future dedupe matches across formatting variants
+  // (the in-memory findCustomerByPhone also normalizes, so this keeps stored ↔ memory aligned).
+  const normalizedPhone = (typeof normalizePhone === 'function') ? normalizePhone(d.phone) : (d.phone || '');
   return {
     name: d.name,
-    phone: d.phone || null,
+    phone: normalizedPhone || null,
     email: d.email || null,
     address: d.address || null,
     notes: d.notes || null,
@@ -922,6 +958,51 @@ function calcRecipeLineCost(ri){
   return i.cost * qtyInStorage;
 }
 const calcIngCost = r => (r.ingredients || []).reduce((s,ri)=> s + calcRecipeLineCost(ri), 0);
+
+// Effective P&L helpers — single source of truth for order/quotation cost and revenue
+// resolution. Snapshot fields are preferred over recomputation so historical orders stay
+// stable when ingredient prices or recipe content change later.
+function _numOrNull(v) { return v == null || v === '' ? null : Number(v); }
+function effectiveSellPerUnit(o, recipe) {
+  const s1 = _numOrNull(o.sellPricePerUnit);
+  if (s1 != null) return s1;
+  const s2 = _numOrNull(o.sellPriceSnapshot);
+  if (s2 != null) return s2;
+  return recipe ? Number(recipe.sellPrice) || 0 : 0;
+}
+function effectiveCakeCost(o, recipe) {
+  const c = _numOrNull(o.cakeCost);
+  if (c != null) return c;
+  // Legacy fallback: best-effort reconstruction
+  const ic = _numOrNull(o.ingredientCost);
+  if (ic != null) {
+    const labour = Number(o.labour) || 0;
+    const elec   = Number(o.electricity) || 0;
+    const oh     = Number(o.overhead) || 0;
+    const pack   = (Array.isArray(o.packaging) ? o.packaging.reduce((s,p)=>s+Number(p.price||0),0) : 0) * (o.qty || 1);
+    return ic + labour + elec + oh + pack;
+  }
+  return recipe ? calcIngCost(recipe) * (o.qty || 1) : 0;
+}
+function addonTotals(o) {
+  const list = Array.isArray(o.addons) ? o.addons : [];
+  let revenue = 0, cost = 0;
+  list.forEach(a => {
+    const q = Number(a.qty) || 0;
+    revenue += (Number(a.price) || 0) * q;
+    cost    += (Number(a.cost)  || 0) * q;
+  });
+  return { revenue, cost };
+}
+// total_revenue = cake_revenue + addons_revenue   (transport excluded — it's pass-through)
+function effectiveTotalRevenue(o, recipe) {
+  return effectiveSellPerUnit(o, recipe) * (o.qty || 1) + addonTotals(o).revenue;
+}
+// total_cost = cake_cost + addons_cost   (transport excluded)
+function effectiveTotalCost(o, recipe) {
+  return effectiveCakeCost(o, recipe) + addonTotals(o).cost;
+}
+
 const ingOpts = (sel=null) => S.ingredients.map(i=>`<option value="${i.id}"${sel===i.id?' selected':''}>${esc(i.name)} (${esc(i.unit)})</option>`).join('');
 const recipeOpts = () => S.recipes.map(r=>`<option value="${r.id}">${esc(r.name)} — ${fmtMoney(r.sellPrice)}</option>`).join('');
 
@@ -1002,19 +1083,9 @@ function sortableTh(tab, col, label, width, extra){
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function renderDashboard(){
   const done=S.orders.filter(o=>o.status==='done');
-  // Revenue prefers per-order sell price snapshot; falls back to recipe's suggested price.
-  const revenue = done.reduce((s,o)=>{
-    const r = getRecipe(o.recipeId);
-    const sell = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
-    return s + sell * o.qty;
-  }, 0);
-  // Cost = cake cost (ingredients + labour + electricity + packing). Transport excluded.
-  const cost = done.reduce((s,o)=>{
-    if (parseFloat(o.cakeCost) > 0) return s + parseFloat(o.cakeCost);
-    if (parseFloat(o.ingredientCost) > 0) return s + parseFloat(o.ingredientCost);
-    const r = getRecipe(o.recipeId);
-    return s + (r ? calcIngCost(r) * o.qty : 0);
-  }, 0);
+  // Totals include add-ons (revenue + cost). Transport is excluded from both — it's pass-through.
+  const revenue = done.reduce((s,o)=> s + effectiveTotalRevenue(o, getRecipe(o.recipeId)), 0);
+  const cost    = done.reduce((s,o)=> s + effectiveTotalCost   (o, getRecipe(o.recipeId)), 0);
   const pending=S.orders.filter(o=>o.status==='pending').length;
   const lowStock=S.ingredients.filter(i=>i.stock<1).length;
   const recentOrders=[...S.orders].reverse().slice(0,5);
@@ -1158,7 +1229,7 @@ function renderRecipes(){
           ${sortableTh('recipes','yield','Yield','22%')}
           ${sortableTh('recipes','cost','Ing. cost','13%')}
           ${sortableTh('recipes','sell','Sell price','13%')}
-          ${sortableTh('recipes','margin','Margin','10%')}
+          ${sortableTh('recipes','margin','Ingr. margin','10%')}
           <th style="width:8%"></th>
         </tr></thead>
         <tbody>${recipes.map(r=>{
@@ -1183,17 +1254,16 @@ function renderOrders(){
     // User picked a column — sort by it
     orders = sortRows(S.orders, ss.col, ss.dir, (o, col) => {
       const r = getRecipe(o.recipeId);
-      const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
-      const sellTotal = sellPerU * o.qty;
-      const cost = parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
+      const totalRev  = effectiveTotalRevenue(o, r);
+      const totalCost = effectiveTotalCost(o, r);
       switch (col) {
         case 'customer': return o.customer || '';
         case 'phone':    return o.customerPhone || '';
         case 'item':     return r ? r.name : '';
         case 'qty':      return Number(o.qty) || 0;
-        case 'sell':     return sellTotal;
-        case 'cost':     return cost;
-        case 'margin':   return sellTotal > 0 ? ((sellTotal - cost) / sellTotal * 100) : 0;
+        case 'sell':     return totalRev;
+        case 'cost':     return totalCost;
+        case 'margin':   return totalRev > 0 ? ((totalRev - totalCost) / totalRev * 100) : 0;
         case 'due':      return dateKey(o.dueDate);
         case 'status':   return o.status || '';
         default: return null;
@@ -1208,10 +1278,11 @@ function renderOrders(){
     });
   }
   const todayKey = today();
-  const totalRevenueDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0)) * o.qty, 0);
-  // Cake cost (NOT including transport — that's an invoiced pass-through)
-  const totalCostDone = orders.filter(o=>o.status==='done').reduce((s,o)=> s + (parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || 0), 0);
-  const totalProfitDone = totalRevenueDone - totalCostDone;
+  // Aggregates include add-ons; transport is excluded (it's a pass-through, never in profit)
+  const doneOrders = orders.filter(o=>o.status==='done');
+  const totalRevenueDone = doneOrders.reduce((s,o)=> s + effectiveTotalRevenue(o, getRecipe(o.recipeId)), 0);
+  const totalCostDone    = doneOrders.reduce((s,o)=> s + effectiveTotalCost   (o, getRecipe(o.recipeId)), 0);
+  const totalProfitDone  = totalRevenueDone - totalCostDone;
   document.getElementById('tab-orders').innerHTML = `
     <div class="metric-grid" style="margin-bottom:1rem">
       <div class="metric"><div class="metric-label">Pending</div><div class="metric-val amber">${orders.filter(o=>o.status==='pending').length}</div></div>
@@ -1237,9 +1308,9 @@ function renderOrders(){
         <tbody>${orders.map(o => {
           const r = getRecipe(o.recipeId);
           const overdue = o.status === 'pending' && dateKey(o.dueDate) < todayKey;
-          const sell = (parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0)) * o.qty;
-          // Use cake cost (ingredients + labour + electricity + packing) — not transport
-          const cost = parseFloat(o.cakeCost) || parseFloat(o.ingredientCost) || (r ? calcIngCost(r) * o.qty : 0);
+          // Sell/Cost include add-ons; transport stays out (it's a pass-through)
+          const sell = effectiveTotalRevenue(o, r);
+          const cost = effectiveTotalCost(o, r);
           const margin = sell > 0 ? Math.round((sell - cost) / sell * 100) : 0;
           return `<tr>
             <td style="font-weight:500">${o.customerId ? `<a href="#" onclick="showCustomerDetail(${o.customerId});return false" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text-muted)">${esc(o.customer)}</a>` : esc(o.customer)}</td>
@@ -1263,15 +1334,8 @@ function renderQuotations(){
   // Compute revenue/cost/margin per quote up front (used both for sort getter and display)
   const decorated = S.quotations.map(q => {
     const r = getRecipe(q.recipeId);
-    const sellPerU = parseFloat(q.sellPricePerUnit) || 0;
-    const cakeRevenue = sellPerU * (q.qty || 1);
-    const packagingTotal = (Array.isArray(q.packaging) ? q.packaging.reduce((s,p)=>s+Number(p.price||0),0) : 0) * (q.qty || 1);
-    const cakeCost = (parseFloat(q.ingredientCost) || (r ? calcIngCost(r) * (q.qty||1) : 0))
-      + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
-    const addonRevenue = (q.addons||[]).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
-    const addonCost    = (q.addons||[]).reduce((s,a)=>s+Number(a.cost||0)*Number(a.qty||0),0);
-    const totalRevenue = cakeRevenue + addonRevenue;
-    const totalCost    = cakeCost   + addonCost;
+    const totalRevenue = effectiveTotalRevenue(q, r);
+    const totalCost    = effectiveTotalCost(q, r);
     const margin = totalRevenue > 0 ? Math.round((totalRevenue - totalCost) / totalRevenue * 100) : 0;
     return { q, r, totalRevenue, totalCost, margin };
   });
@@ -1456,8 +1520,8 @@ function showQuotationForm(q, mode){
 }
 
 // Read the quotation form payload — same fields as order payload, with status + validUntil
-function readQuotationFormPayload(){
-  const p = readOrderFormPayload(); if (!p) return null;
+function readQuotationFormPayload(priorSnapshot){
+  const p = readOrderFormPayload(priorSnapshot); if (!p) return null;
   const status = document.getElementById('m-qstatus').value || 'draft';
   // The form re-uses m-odate for valid_until in quotations
   return { ...p, status, validUntil: p.dueDate, dueDate: undefined };
@@ -1476,11 +1540,34 @@ async function saveQuotation(){
 async function saveEditQuotation(id){
   const existing = S.quotations.find(x => x.id === id);
   if (!existing) return;
-  const p = readQuotationFormPayload(); if (!p) return;
+  // Only preserve historical prices when the recipe wasn't switched
+  const formRecipeId = parseInt(document.getElementById('m-orec').value);
+  const priorSnap = existing.recipeId === formRecipeId ? existing.ingredientSnapshot : null;
+  const p = readQuotationFormPayload(priorSnap); if (!p) return;
   p.customerId = await resolveCustomerForPayload(p);
   const { recipe, dueDate, ...rest } = p;
+  // Capture before/after diff for the audit log
+  const before = {
+    customer: existing.customer, qty: existing.qty, status: existing.status,
+    sellPricePerUnit: existing.sellPricePerUnit,
+    labour: existing.labour, electricity: existing.electricity, overhead: existing.overhead,
+    transportCost: existing.transportCost, cakeCost: existing.cakeCost,
+    recipeId: existing.recipeId, validUntil: dateKey(existing.validUntil),
+    packaging: Array.isArray(existing.packaging) ? existing.packaging : [],
+    addons:    Array.isArray(existing.addons)    ? existing.addons    : []
+  };
+  const after = {
+    customer: rest.customer, qty: rest.qty, status: rest.status,
+    sellPricePerUnit: rest.sellPricePerUnit,
+    labour: rest.labour, electricity: rest.electricity, overhead: rest.overhead,
+    transportCost: rest.transportCost, cakeCost: rest.cakeCost,
+    recipeId: rest.recipeId, validUntil: rest.validUntil,
+    packaging: rest.packaging || [],
+    addons:    rest.addons    || []
+  };
+  const fieldChanges = diffFields(before, after);
   Object.assign(existing, rest);
-  logAction('quote','Quotation updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}`, 'quotation', id);
+  logAction('quote','Quotation updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}`, 'quotation', id, fieldChanges);
   closeModal(); renderQuotations();
   await persistWrite('editQuotation', { id, ...rest }, activityLog[0]);
 }
@@ -1500,15 +1587,13 @@ async function setQuotationStatus(id, status){
 function showQuotationDetail(id){
   const q = S.quotations.find(x => x.id === id); if (!q) return;
   const r = getRecipe(q.recipeId);
-  const sellPerU = parseFloat(q.sellPricePerUnit) || 0;
+  const sellPerU = effectiveSellPerUnit(q, r);
   const cakeRevenue = sellPerU * q.qty;
-  const packagingTotal = (Array.isArray(q.packaging) ? q.packaging.reduce((s,p)=>s+Number(p.price||0),0) : 0) * q.qty;
-  const cakeCost = (parseFloat(q.ingredientCost) || (r ? calcIngCost(r) * q.qty : 0))
-    + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
+  const cakeCost = effectiveCakeCost(q, r);
   const cakeProfit = cakeRevenue - cakeCost;
   const cakeMargin = cakeRevenue > 0 ? Math.round(cakeProfit / cakeRevenue * 100) : 0;
-  const addonRevenue = (q.addons||[]).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
-  const addonCost    = (q.addons||[]).reduce((s,a)=>s+Number(a.cost ||0)*Number(a.qty||0),0);
+  const at = addonTotals(q);
+  const addonRevenue = at.revenue, addonCost = at.cost;
   const totalRevenue = cakeRevenue + addonRevenue;
   const totalCost    = cakeCost   + addonCost;
   const totalProfit  = totalRevenue - totalCost;
@@ -1576,14 +1661,24 @@ async function convertQuotationToOrder(quoteId){
   const r = getRecipe(q.recipeId);
   if (!r) { alert('Recipe linked to this quote is missing — pick a different recipe by editing the quote first.'); return; }
   if (!confirm(`Convert quotation #${q.id} into a new order? The quote will be marked Accepted.`)) return;
-  const snap = buildOrderSnapshot(r, q.qty);
+  // Reuse the quote's snapshot prices so the converted order matches what the customer agreed to
+  const snap = buildOrderSnapshot(r, q.qty, q.ingredientSnapshot);
   const id = S.nextOrderId++;
   const packagingTotal = (q.packaging || []).reduce((s,p)=>s+Number(p.price||0),0) * q.qty;
   const cakeCost = snap.ingredientCost + Number(q.labour||0) + Number(q.electricity||0) + Number(q.overhead||0) + packagingTotal;
+  // Resolve customer link if the quote was made before the customer existed
+  // (or if the FK was cleared by a customer delete). Falls back to creating one.
+  const resolvedCustomerId = await resolveCustomerForPayload({
+    customerId: q.customerId,
+    customer: q.customer,
+    customerPhone: q.customerPhone,
+    customerEmail: q.customerEmail,
+    customerAddress: q.customerAddress
+  });
   const order = {
     id,
     customer: q.customer, customerPhone: q.customerPhone, customerEmail: q.customerEmail, customerAddress: q.customerAddress,
-    customerId: q.customerId || null,
+    customerId: resolvedCustomerId,
     recipeId: q.recipeId, qty: q.qty,
     note: q.note || '',
     dueDate: q.validUntil || today(),
@@ -1610,10 +1705,18 @@ async function convertQuotationToOrder(quoteId){
 
 // ─── CUSTOMERS ───────────────────────────────────────────────────────────────
 const getCustomer = id => S.customers.find(c => c.id === id);
+// Normalize a phone number for comparison: strip everything except digits and a leading '+'.
+// "+65 1234 5678", "+651234 5678", "(65) 1234-5678" all become "+6512345678" / "6512345678".
+function normalizePhone(phone){
+  const raw = String(phone || '').trim();
+  if (!raw) return '';
+  const lead = raw.startsWith('+') ? '+' : '';
+  return lead + raw.replace(/[^0-9]/g, '');
+}
 function findCustomerByPhone(phone){
-  const p = (phone || '').trim();
+  const p = normalizePhone(phone);
   if (!p) return null;
-  return S.customers.find(c => (c.phone || '').trim() === p);
+  return S.customers.find(c => normalizePhone(c.phone) === p);
 }
 function findCustomerByName(name){
   const n = (name || '').trim().toLowerCase();
@@ -1624,12 +1727,7 @@ function findCustomerByName(name){
 function customerStats(custId){
   const orders = S.orders.filter(o => o.customerId === custId);
   const done = orders.filter(o => o.status === 'done');
-  const revenue = done.reduce((s,o) => {
-    const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (getRecipe(o.recipeId)?.sellPrice || 0);
-    const cakeRev = sellPerU * (o.qty || 1);
-    const addonRev = (o.addons || []).reduce((a,x) => a + Number(x.price||0) * Number(x.qty||0), 0);
-    return s + cakeRev + addonRev;
-  }, 0);
+  const revenue = done.reduce((s,o) => s + effectiveTotalRevenue(o, getRecipe(o.recipeId)), 0);
   const lastKey = orders.reduce((latest,o) => {
     const k = dateKey(o.dueDate);
     return (k && k > latest) ? k : latest;
@@ -1769,9 +1867,6 @@ function showCustomerDetail(id){
   const tags = (c.tags || []).length ? c.tags.map(t => `<span class="badge badge-info" style="margin-right:4px">${esc(t)}</span>`).join('') : '';
   const orderRows = orders.length ? orders.map(o => {
     const r = getRecipe(o.recipeId);
-    const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
-    const cakeRev = sellPerU * o.qty;
-    const addonRev = (o.addons || []).reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
     return `<div class="kv-row">
       <span class="kv-label">
         <a href="#" onclick="closeModal();showOrderDetail(${o.id});return false">#${o.id}</a>
@@ -1779,7 +1874,7 @@ function showCustomerDetail(id){
         <span style="color:var(--text-muted)">— ${fmtDate(o.dueDate)}</span>
       </span>
       <span class="kv-value">
-        ${fmtMoney(cakeRev + addonRev)}
+        ${fmtMoney(effectiveTotalRevenue(o, r))}
         <span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}" style="margin-left:6px">${esc(o.status)}</span>
       </span>
     </div>`;
@@ -1823,12 +1918,14 @@ function renderPricing(){
     <div class="two-col">
       <div class="card">
         <div class="card-head"><span class="card-title">Recipe Cost Estimator</span></div>
-        <div class="form-group" style="margin-bottom:12px"><label>Recipe</label><select id="pricing-recipe" onchange="calcPricing()">${recipeOpts()}</select></div>
+        <div class="form-group" style="margin-bottom:12px"><label>Recipe</label><select id="pricing-recipe" onchange="onPricingRecipeChange()">${recipeOpts()}</select></div>
         <div class="form-row">
-          <div class="form-group"><label>Overhead %</label><input type="number" id="pricing-overhead" value="20" onchange="calcPricing()"></div>
           <div class="form-group"><label>Labour (${CURRENCY})</label><input type="number" id="pricing-labour" value="20" onchange="calcPricing()"></div>
+          <div class="form-group"><label>Electricity (${CURRENCY})</label><input type="number" id="pricing-elec" value="5" onchange="calcPricing()"></div>
+          <div class="form-group"><label>Overhead (${CURRENCY})</label><input type="number" id="pricing-overhead" value="5" onchange="calcPricing()"></div>
         </div>
-        <div class="form-group" style="margin-bottom:12px"><label>Target margin %</label><input type="number" id="pricing-margin" value="40" onchange="calcPricing()"></div>
+        <div class="form-group" style="margin-bottom:6px"><label>Target margin %</label><input type="number" id="pricing-margin" value="40" onchange="calcPricing()"></div>
+        <div style="font-size:11px;color:var(--text-muted);margin:-2px 0 10px">Packaging is read from the recipe and added automatically.</div>
       </div>
       <div id="pricing-results"></div>
     </div>
@@ -1846,26 +1943,51 @@ function renderPricing(){
         </div>`;
       }).join('')}</div>
     </div>`;
-  calcPricing();
+  onPricingRecipeChange();
 }
 
+// When a recipe is picked, pre-fill the labour/electricity/overhead inputs with its defaults
+function onPricingRecipeChange(){
+  const r = getRecipe(parseInt(document.getElementById('pricing-recipe').value));
+  if (r) {
+    const lbEl = document.getElementById('pricing-labour');
+    const elEl = document.getElementById('pricing-elec');
+    const ovEl = document.getElementById('pricing-overhead');
+    if (lbEl) lbEl.value = Number(r.defaultLabour      ?? 20);
+    if (elEl) elEl.value = Number(r.defaultElectricity ?? 5);
+    if (ovEl) ovEl.value = Number(r.defaultOverhead    ?? 5);
+  }
+  calcPricing();
+}
 function calcPricing(){
-  const r=getRecipe(parseInt(document.getElementById('pricing-recipe').value));
-  if(!r) return;
-  const ic=calcIngCost(r),ov=parseFloat(document.getElementById('pricing-overhead').value)||0;
-  const lb=parseFloat(document.getElementById('pricing-labour').value)||0;
-  const tm=parseFloat(document.getElementById('pricing-margin').value)||40;
-  const ovc=ic*(ov/100),tc=ic+ovc+lb,suggested=tc/(1-tm/100);
-  const actual=r.sellPrice>0?((r.sellPrice-tc)/r.sellPrice*100):0;
-  document.getElementById('pricing-results').innerHTML=`
+  const r = getRecipe(parseInt(document.getElementById('pricing-recipe').value));
+  if (!r) return;
+  const ic = calcIngCost(r);
+  const lb = parseFloat(document.getElementById('pricing-labour').value)   || 0;
+  const el = parseFloat(document.getElementById('pricing-elec').value)     || 0;
+  const ov = parseFloat(document.getElementById('pricing-overhead').value) || 0;
+  const tm = parseFloat(document.getElementById('pricing-margin').value)   || 40;
+  const packPerUnit = Array.isArray(r.packaging)
+    ? r.packaging.reduce((s,p)=> s + Number(p.price||0), 0)
+    : 0;
+  // Canonical cake cost (per unit): ingredients + labour + electricity + overhead + packaging
+  const tc = ic + lb + el + ov + packPerUnit;
+  const suggested = tm < 100 ? tc / (1 - tm/100) : tc;
+  const actual = r.sellPrice > 0 ? ((r.sellPrice - tc) / r.sellPrice * 100) : 0;
+  document.getElementById('pricing-results').innerHTML = `
     <div class="card" style="margin-bottom:0">
       <div class="card-head"><span class="card-title">Cost Breakdown</span></div>
-      ${[['Ingredient cost',fmtMoney(ic),''],['Overhead',fmtMoney(ovc),''],['Labour',fmtMoney(lb),''],
-        ['Total cost',fmtMoney(tc),'font-weight:600'],
-        ['Suggested price ('+fmtPct(tm)+' margin)',fmtMoney(suggested),'font-weight:600;color:var(--success)'],
-        ['Current sell price',fmtMoney(r.sellPrice),''],
-        ['Actual margin',fmtPct(actual),`font-weight:600;color:${actual>=40?'var(--success)':'var(--danger)'}`]]
-        .map(([k,v,s])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px"><span>${k}</span><span style="${s}">${v}</span></div>`).join('')}
+      ${[
+        ['Ingredients',  fmtMoney(ic),          ''],
+        ['Labour',       fmtMoney(lb),          ''],
+        ['Electricity',  fmtMoney(el),          ''],
+        ['Overhead',     fmtMoney(ov),          ''],
+        ['Packaging',    fmtMoney(packPerUnit), ''],
+        ['Total cost',   fmtMoney(tc),          'font-weight:600'],
+        ['Suggested price ('+fmtPct(tm)+' margin)', fmtMoney(suggested), 'font-weight:600;color:var(--success)'],
+        ['Current sell price', fmtMoney(r.sellPrice), ''],
+        ['Actual margin', fmtPct(actual), `font-weight:600;color:${actual>=40?'var(--success)':'var(--danger)'}`]
+      ].map(([k,v,s]) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px"><span>${k}</span><span style="${s}">${v}</span></div>`).join('')}
     </div>`;
 }
 
@@ -1889,7 +2011,7 @@ function renderActivityLog(){
         </div>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        ${chip('All','')} ${chip('Ingredients','ingredient')} ${chip('Recipes','recipe')} ${chip('Orders','order')} ${chip('Trips','trip')}
+        ${chip('All','')} ${chip('Ingredients','ingredient')} ${chip('Recipes','recipe')} ${chip('Orders','order')} ${chip('Quotations','quotation')} ${chip('Customers','customer')} ${chip('Trips','trip')}
       </div>
       <div id="log-body"></div>
       ${activityLog.length>0?`<div style="margin-top:10px;text-align:right"><button class="btn btn-sm btn-danger" onclick="if(confirm('Clear ALL log entries? This cannot be undone.')){activityLog.length=0;persistWrite('clearLog',{});renderActivityLog()}">Clear log</button></div>`:''}
@@ -2000,17 +2122,17 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
 
       <h3>3.2 Edit an ingredient (correct, adjust stock, log a purchase)</h3>
       <ol>
-        <li><strong>Inventory</strong> → <strong>Edit</strong> on the row</li>
+        <li><strong>Inventory</strong> → <strong>View</strong> on the row → <strong>Edit</strong></li>
         <li><strong>Current values</strong> section — direct edit of Name / Stock / Cost (use this for typo fixes or stock-count corrections)</li>
         <li><strong>Or log a new purchase</strong> section — fill in <em>Bought qty</em> and <em>Total price</em>; the system <strong>adds</strong> the qty to current stock and <strong>recalculates</strong> the per-unit cost from your total price</li>
         <li><strong>Save changes</strong></li>
       </ol>
 
       <h3>3.3 See the price history of an ingredient</h3>
-      <p><strong>Inventory</strong> → <strong>Prices</strong> button on the row. Chart + list of every price change.</p>
+      <p><strong>Inventory</strong> → <strong>View</strong> on the row. The View page shows the price chart, every price change, and the recipes that use this ingredient — all on one page.</p>
 
       <h3>3.4 See the full audit log of one item</h3>
-      <p>Any row's <strong>Log</strong> button (or "View change log" inside the View modal) lists every add/edit/delete that touched that one item, with old → new values.</p>
+      <p>Open any row with <strong>View</strong>, then click <strong>Change log</strong> inside the View modal. It lists every add/edit/delete that touched that one item, with old → new values.</p>
 
       <h3>3.5 Log a shopping trip</h3>
       <ol>
@@ -2036,10 +2158,10 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
       </ol>
 
       <h3>3.7 Clone an existing recipe</h3>
-      <p><strong>Recipes</strong> → <strong>Clone</strong> on the row → form opens pre-filled with name <em>"Copy of …"</em>. Tweak and Save.</p>
+      <p><strong>Recipes</strong> → <strong>View</strong> on the row → <strong>Clone</strong>. Form opens pre-filled with name <em>"Copy of …"</em>. Tweak and Save.</p>
 
       <h3>3.8 Edit / delete a recipe</h3>
-      <p><strong>Edit</strong> opens the same form; <strong>Del</strong> removes it (orders previously placed using it keep their cost snapshot, so deleting doesn't corrupt past orders).</p>
+      <p>Open with <strong>View</strong>. <strong>Edit</strong> opens the same form as Add; <strong>Delete</strong> removes the recipe (orders previously placed using it keep their cost snapshot, so deleting doesn't corrupt past orders).</p>
 
       <h3>3.9 Place an order</h3>
       <ol>
@@ -2056,23 +2178,23 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
       </ol>
 
       <h3>3.10 Edit an order</h3>
-      <p>Pending orders show an <strong>Edit</strong> button on the row (and inside the View modal). Change any field; the form is the same as Add. Once an order is <strong>Done</strong>, the Edit button hides — Mark Undone first if you need to change a completed order.</p>
+      <p>Open the order with <strong>View</strong>. While the order is <em>pending</em>, an <strong>Edit</strong> button appears inside the modal. Change any field; the form is the same as Add. Once an order is <strong>Done</strong> the Edit button hides — click <em>Undo</em> first if you need to change a completed order. Editing a pending order preserves the original ingredient prices in the cost snapshot, so old orders don't get rewritten at today's prices.</p>
 
       <h3>3.11 Mark an order Done</h3>
-      <p><strong>Orders</strong> → <strong>✓ Done</strong> on the pending row. System subtracts the snapshot ingredient quantities from your inventory and sets the completion date. If stock would go negative you get a warning but can still proceed.</p>
+      <p><strong>Orders</strong> → <strong>View</strong> → <strong>✓ Mark Done</strong>. System subtracts the snapshot ingredient quantities from your inventory and sets the completion date. If stock would go negative you get a warning but can still proceed.</p>
 
       <h3>3.12 Undo a completed order</h3>
-      <p><strong>Orders</strong> → <strong>Undo</strong> on a completed row. Status flips back to pending; stock is restored.</p>
+      <p>Open the completed order with <strong>View</strong> → <strong>Undo</strong>. Status flips back to pending; stock is restored.</p>
 
       <h3>3.13 View an order's full breakdown</h3>
-      <p><strong>Orders</strong> → <strong>View</strong> on any row. Shows customer details, ingredient lines as they were when the order was placed, labour/electricity/overhead/packaging items, total cake cost, sell, cake profit, then add-ons (with own profit), then total profit. Below a dashed line: transport + invoice total.</p>
+      <p><strong>Orders</strong> → <strong>View</strong> on any row. Shows customer details, ingredient lines as they were when the order was placed, labour/electricity/overhead/packaging items, total cake cost, sell, cake profit, then add-ons (with own profit), then total profit. Below a dashed line: transport + invoice total. All other actions (Edit, Clone, Delete, Mark Done, Change log) live inside this view.</p>
 
       <h3>3.14 Quotations — quote → accepted → order</h3>
       <ol>
         <li><strong>Quotations</strong> tab → <strong>+ New quotation</strong></li>
         <li>Same fields as a new order, plus a <strong>Valid until</strong> date and a <strong>Status</strong> dropdown (default <em>draft</em>)</li>
-        <li>Save the quote (status <em>draft</em>). Open it → set status to <em>sent</em> when you send it to the customer</li>
-        <li>When the customer accepts: click <strong>→ Order</strong> on the row (or "→ Convert to Order" in the detail). System creates a fresh order pre-filled from the quote, marks the quote <em>accepted</em>, and links them</li>
+        <li>Save the quote (status <em>draft</em>). Open it with <strong>View</strong> → set status to <em>sent</em> when you send it to the customer</li>
+        <li>When the customer accepts: in the quote's View modal, click <strong>→ Convert to Order</strong>. System creates a fresh order pre-filled from the quote, marks the quote <em>accepted</em>, and links them</li>
         <li>If they reject or it expires: set the status accordingly. Past quotes stay searchable.</li>
       </ol>
 
@@ -2086,7 +2208,7 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
       </ul>
 
       <h3>3.16 Search the audit log</h3>
-      <p><strong>Activity Log</strong> tab. Search box filters by keyword. Chip filters: All / Ingredients / Recipes / Orders / Trips. Each edit shows old → new in red/green.</p>
+      <p><strong>Activity Log</strong> tab. Search box filters by keyword. Chip filters: All / Ingredients / Recipes / Orders / Quotations / Customers / Trips. Each edit shows old → new in red/green.</p>
 
       <h2>4. The "Discard unsaved changes?" prompt</h2>
       <p>Any form modal you've typed into will ask before closing if you click outside, press Esc, or click Cancel. Protects against accidental data loss in a half-filled form. Empty form → closes silently.</p>
@@ -2097,8 +2219,8 @@ End of month   →  Dashboard for profit; Activity Log → search to audit</pre>
       <h2>6. Where your data lives</h2>
       <table><thead><tr><th>Location</th><th>What</th></tr></thead><tbody>
         <tr><td>Supabase (live)</td><td>Source of truth. Open project dashboard via supabase.com.</td></tr>
-        <tr><td>Google Sheet (nightly)</td><td>Apps Script <code>backupFromSupabase</code> overwrites the Sheet tabs every night at 23:00 SGT. A <code>_backup_log</code> tab shows when each run completed.</td></tr>
-        <tr><td>GitHub <code>backups/</code> folder (nightly)</td><td>A timestamped JSON file with every table, committed at 23:15 SGT.</td></tr>
+        <tr><td>Google Sheet (nightly)</td><td>Apps Script <code>backupFromSupabase</code> overwrites the Sheet tabs every night at 23:00 SGT — includes customers and quotations. A <code>_backup_log</code> tab shows when each run completed.</td></tr>
+        <tr><td>GitHub <code>backups/</code> folder (nightly)</td><td>A timestamped JSON file with every table (customers + quotations included), committed at 23:15 SGT.</td></tr>
       </tbody></table>
 
       <h2>7. Common questions</h2>
@@ -2248,7 +2370,20 @@ async function saveEditIngredient(id){
 }
 async function deleteIng(id){
   const i=getIng(id);
-  logAction('delete','Ingredient deleted', i?i.name:'unknown', 'ingredient', id);
+  if (!i) return;
+  // Block delete if this ingredient is used by any recipe or appears in any shopping trip.
+  // The FK is ON DELETE RESTRICT post-migration, so DB would reject anyway — front-load with a clear message.
+  const usedByRecipes = S.recipes.filter(r => (r.ingredients||[]).some(ri => ri.ingId === id));
+  let tripCount = 0;
+  S.shoppingTrips.forEach(t => { if ((t.items||[]).some(it => it.ingId === id)) tripCount++; });
+  if (usedByRecipes.length || tripCount) {
+    const parts = [];
+    if (usedByRecipes.length) parts.push(`${usedByRecipes.length} recipe(s): ${usedByRecipes.map(r=>r.name).join(', ')}`);
+    if (tripCount) parts.push(`${tripCount} past shopping trip(s)`);
+    alert(`Can't delete "${i.name}" — it's still referenced by ${parts.join(' and ')}.\n\nRemove it from those first, then try again.`);
+    return;
+  }
+  logAction('delete','Ingredient deleted', i.name, 'ingredient', id);
   S.ingredients=S.ingredients.filter(x=>x.id!==id); renderInventory();
   await persistWrite('deleteIngredient', {id}, activityLog[0]);
 }
@@ -2319,7 +2454,7 @@ function showIngredientDetail(id){
       <button class="btn btn-primary" onclick="closeModal();showEditIngredient(${id})">Edit</button>
       <button class="btn" onclick="closeModal();showEntityHistory('ingredient', ${id}, ${JSON.stringify(i.name)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
-      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this ingredient? Recipes that use it will break — fix them first.')){closeModal();deleteIng(${id})}">Delete</button>
+      <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this ingredient? This is only allowed if it isn\\'t used in any recipe or past shopping trip.')){closeModal();deleteIng(${id})}">Delete</button>
     </div>`, { wide: true });
   // Draw the price chart after the modal renders
   if (hist.length > 1) {
@@ -2628,7 +2763,8 @@ async function handleRecipePhoto(ev){
   if (!file) return;
   const status = document.getElementById('m-rphoto-status');
   status.textContent = 'Uploading…';
-  const url = await uploadRecipePhoto(file);
+  // Pass the current URL so a successful replacement can delete the old object from storage
+  const url = await uploadRecipePhoto(file, null, _recipePhotoUrl);
   if (url) {
     _recipePhotoUrl = url;
     document.getElementById('m-rphoto-preview').innerHTML =
@@ -2820,10 +2956,37 @@ async function saveEditRecipe(id){
   await persistWrite('editRecipe', { id, ...payload, defaultPackingPerUnit: 0 }, activityLog[0]);
 }
 // Compute before→after diff for audit log; returns null if nothing changed.
+// Render a packaging[] or addons[] list as a short readable summary for the audit log.
+function _summarizeListField(k, v) {
+  if (!Array.isArray(v)) return v;
+  if (v.length === 0) return '(none)';
+  if (k === 'packaging') {
+    return v.map(p => `${p.item || '?'} @ ${fmtMoney(p.price || 0)}`).join(', ');
+  }
+  if (k === 'addons') {
+    return v.map(a => `${a.name || '?'} × ${a.qty || 0} (sell ${fmtMoney(a.price || 0)}, cost ${fmtMoney(a.cost || 0)})`).join(', ');
+  }
+  // Generic fallback for other list fields (e.g., tags is already pre-joined upstream)
+  return v.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(', ');
+}
+// Deep equality good enough for the simple shapes we store (scalars + small jsonb arrays/objects)
+function _deepEq(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return false;
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+}
 function diffFields(before, after){
   const changes = {};
   for (const k in after) {
-    if (before[k] !== after[k]) changes[k] = { old: before[k], new: after[k] };
+    const bv = before[k], av = after[k];
+    if (!_deepEq(bv, av)) {
+      changes[k] = {
+        old: Array.isArray(bv) ? _summarizeListField(k, bv) : bv,
+        new: Array.isArray(av) ? _summarizeListField(k, av) : av
+      };
+    }
   }
   return Object.keys(changes).length ? changes : null;
 }
@@ -3082,7 +3245,16 @@ function updateOrderHelper(){
     <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>`;
 }
 // Build a snapshot of recipe ingredients scaled by orderQty, in storage units.
-function buildOrderSnapshot(recipe, orderQty){
+// priorSnapshot (optional): an existing ingredientSnapshot from the row being edited.
+// When present, we preserve the historical costPerUnit per ingredient so editing an
+// old order (e.g., bumping qty) doesn't rewrite its cost at today's prices.
+function buildOrderSnapshot(recipe, orderQty, priorSnapshot){
+  const priorByIngId = {};
+  if (Array.isArray(priorSnapshot)) {
+    priorSnapshot.forEach(line => {
+      if (line && line.ingId != null) priorByIngId[line.ingId] = line;
+    });
+  }
   const lines = (recipe.ingredients || []).map(ri => {
     const ing = getIng(ri.ingId);
     if (!ing) return null;
@@ -3090,6 +3262,8 @@ function buildOrderSnapshot(recipe, orderQty){
     const totalEntered = ri.qty * orderQty;
     const qtyInStorage = convertUnit(totalEntered, fromUnit, ing.unit);
     const qtyOk = qtyInStorage !== null;
+    const prior = priorByIngId[ri.ingId];
+    const costPerUnit = prior && prior.costPerUnit != null ? Number(prior.costPerUnit) : ing.cost;
     return {
       ingId: ri.ingId,
       name: ing.name,
@@ -3097,8 +3271,8 @@ function buildOrderSnapshot(recipe, orderQty){
       unit: fromUnit,
       qtyInStorage: qtyOk ? qtyInStorage : 0,
       storageUnit: ing.unit,
-      costPerUnit: ing.cost,
-      lineCost: qtyOk ? qtyInStorage * ing.cost : 0,
+      costPerUnit,
+      lineCost: qtyOk ? qtyInStorage * costPerUnit : 0,
       conversionError: !qtyOk
     };
   }).filter(Boolean);
@@ -3106,7 +3280,9 @@ function buildOrderSnapshot(recipe, orderQty){
   return { lines, ingredientCost };
 }
 // Read the full order form payload (used by both save and saveEdit)
-function readOrderFormPayload(){
+// priorSnapshot: when editing, pass the existing order/quote's ingredientSnapshot so
+// per-line costPerUnit is preserved instead of being rewritten at today's prices.
+function readOrderFormPayload(priorSnapshot){
   const customer = document.getElementById('m-ocust').value.trim();
   if (!customer) { alert('Customer name required.'); return null; }
   const recipeId = parseInt(document.getElementById('m-orec').value);
@@ -3120,7 +3296,7 @@ function readOrderFormPayload(){
   const transportCost    = parseFloat(document.getElementById('m-otrans').value) || 0;
   const packaging = readPackagingFromForm('m-opack-rows');
   const addons    = readAddonsFromForm('m-oaddon-rows');
-  const snap = buildOrderSnapshot(r, qty);
+  const snap = buildOrderSnapshot(r, qty, priorSnapshot);
   const packagingTotal = packaging.reduce((s,p)=>s+Number(p.price||0),0) * qty;
   const cakeCost = snap.ingredientCost + labour + electricity + overhead + packagingTotal;
   const cidRaw = document.getElementById('m-ocustid')?.value;
@@ -3193,11 +3369,11 @@ async function resolveCustomerForPayload(p){
   if (byPhone) return byPhone.id;
   const byName = findCustomerByName(p.customer);
   if (byName) return byName.id;
-  // Create new
+  // Create new — normalize phone so in-memory matches what we persist
   const id = S.nextCustomerId++;
   const cust = {
     id, name: p.customer,
-    phone: p.customerPhone || '',
+    phone: normalizePhone(p.customerPhone),
     email: p.customerEmail || '',
     address: p.customerAddress || '',
     notes: '', birthday: null, tags: [],
@@ -3228,23 +3404,30 @@ async function saveEditOrder(id){
     showToast('Order is no longer pending — Mark Undone first to edit.', 'error');
     return;
   }
-  const p = readOrderFormPayload(); if (!p) return;
+  // Only preserve historical prices when the recipe wasn't switched
+  const formRecipeId = parseInt(document.getElementById('m-orec').value);
+  const priorSnap = existing.recipeId === formRecipeId ? existing.ingredientSnapshot : null;
+  const p = readOrderFormPayload(priorSnap); if (!p) return;
   p.customerId = await resolveCustomerForPayload(p);
   const { recipe, ...orderRest } = p;
-  // Capture before/after for audit
+  // Capture before/after for audit (include packaging + addons so jsonb edits surface)
   const before = {
     customer: existing.customer, qty: existing.qty,
     sellPricePerUnit: existing.sellPricePerUnit,
     labour: existing.labour, electricity: existing.electricity, overhead: existing.overhead,
     transportCost: existing.transportCost, cakeCost: existing.cakeCost,
-    recipeId: existing.recipeId, dueDate: dateKey(existing.dueDate)
+    recipeId: existing.recipeId, dueDate: dateKey(existing.dueDate),
+    packaging: Array.isArray(existing.packaging) ? existing.packaging : [],
+    addons:    Array.isArray(existing.addons)    ? existing.addons    : []
   };
   const after = {
     customer: p.customer, qty: p.qty,
     sellPricePerUnit: p.sellPricePerUnit,
     labour: p.labour, electricity: p.electricity, overhead: p.overhead,
     transportCost: p.transportCost, cakeCost: p.cakeCost,
-    recipeId: p.recipeId, dueDate: p.dueDate
+    recipeId: p.recipeId, dueDate: p.dueDate,
+    packaging: p.packaging || [],
+    addons:    p.addons    || []
   };
   const fieldChanges = diffFields(before, after);
   Object.assign(existing, orderRest);
@@ -3252,7 +3435,11 @@ async function saveEditOrder(id){
   closeModal(); renderOrders();
   await persistWrite('editOrder', { id, ...orderRest }, activityLog[0]);
 }
+const _cycleInFlight = new Set();
 async function cycleStatus(id){
+  if (_cycleInFlight.has(id)) return;  // guard against rapid double-clicks
+  _cycleInFlight.add(id);
+  try {
   const o=S.orders.find(x=>x.id===id); if(!o) return;
   const r=getRecipe(o.recipeId);
   const movingToDone = o.status === 'pending';
@@ -3286,19 +3473,35 @@ async function cycleStatus(id){
   logAction('order',`Order marked ${o.status}`,`${o.customer} — ${r?r.name:''} × ${o.qty}`,'order',o.id);
   renderOrders();
   await persistWrite('updateOrderStatus', { id: o.id, status: o.status, completedDate: o.completedDate, stockDeltas }, activityLog[0]);
+  } finally {
+    _cycleInFlight.delete(id);
+  }
 }
 async function deleteOrder(id){
   const o=S.orders.find(x=>x.id===id);
-  logAction('delete','Order deleted',o?`${o.customer} — ${fmtDate(o.dueDate)}`:'','order',id);
+  // If we're deleting a Done order, restore the stock that was deducted at Done time
+  let stockDeltas = [];
+  if (o && o.status === 'done' && Array.isArray(o.ingredientSnapshot)) {
+    stockDeltas = o.ingredientSnapshot.map(line => ({
+      ingId: line.ingId,
+      delta: +(parseFloat(line.qtyInStorage) || 0)
+    }));
+    stockDeltas.forEach(d => {
+      const ing = getIng(d.ingId);
+      if (ing) ing.stock = Math.round((parseFloat(ing.stock) + d.delta) * 1000) / 1000;
+    });
+  }
+  const restoredNote = stockDeltas.length ? ' (stock restored)' : '';
+  logAction('delete','Order deleted', o?`${o.customer} — ${fmtDate(o.dueDate)}${restoredNote}`:'', 'order', id);
   S.orders=S.orders.filter(x=>x.id!==id); renderOrders();
-  await persistWrite('deleteOrder', {id}, activityLog[0]);
+  await persistWrite('deleteOrder', { id, stockDeltas }, activityLog[0]);
 }
 function showOrderDetail(id){
   const o = S.orders.find(x => x.id === id); if (!o) return;
   const r = getRecipe(o.recipeId);
-  const sellPerU = parseFloat(o.sellPricePerUnit) || parseFloat(o.sellPriceSnapshot) || (r ? r.sellPrice : 0);
+  const sellPerU = effectiveSellPerUnit(o, r);
   const cakeRevenue = sellPerU * o.qty;
-  const ingCost   = parseFloat(o.ingredientCost) || 0;
+  const ingCost   = Number(o.ingredientCost) || 0;
   const labour    = o.labour      != null ? parseFloat(o.labour)      : null;
   const elec      = o.electricity != null ? parseFloat(o.electricity) : null;
   const overhead  = o.overhead    != null ? parseFloat(o.overhead)    : null;
@@ -3306,16 +3509,15 @@ function showOrderDetail(id){
   const packaging = Array.isArray(o.packaging) ? o.packaging : [];
   const addons    = Array.isArray(o.addons) ? o.addons : [];
   const transport = parseFloat(o.transportCost) || 0;
-  // Compute packaging total: prefer the new packaging[] list, fall back to legacy packing_per_unit × qty
+  // Packaging line subtotal — for the breakdown display, not the cost number
   const packagingTotal = packaging.length
     ? packaging.reduce((s,p)=>s+Number(p.price||0),0) * o.qty
     : (packPerU != null ? packPerU * o.qty : 0);
-  // cakeCost = snapshot stored value when available, else compute from parts
-  const cakeCost = parseFloat(o.cakeCost) || (ingCost + (labour ?? 0) + (elec ?? 0) + (overhead ?? 0) + packagingTotal);
+  const cakeCost = effectiveCakeCost(o, r);
   const cakeProfit = cakeRevenue - cakeCost;
   const cakeMargin = cakeRevenue > 0 ? Math.round(cakeProfit / cakeRevenue * 100) : 0;
-  const addonRevenue = addons.reduce((s,a)=>s+Number(a.price||0)*Number(a.qty||0),0);
-  const addonCost    = addons.reduce((s,a)=>s+Number(a.cost ||0)*Number(a.qty||0),0);
+  const at = addonTotals(o);
+  const addonRevenue = at.revenue, addonCost = at.cost;
   const totalRevenue = cakeRevenue + addonRevenue;
   const totalCost    = cakeCost   + addonCost;
   const totalProfit  = totalRevenue - totalCost;
