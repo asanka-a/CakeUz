@@ -19,7 +19,20 @@
 // ============================================================
 
 const SUPABASE_URL = 'https://puwdbrsvqbxeanoewycy.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d2RicnN2cWJ4ZWFub2V3eWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDY2ODIsImV4cCI6MjA5NDEyMjY4Mn0.Hqub2GM1iZuey5qzd2hOlP1G4QV98sigfgshd7p8g1k';
+
+// The service role key bypasses RLS so the backup can read every table.
+// It is stored as a Script Property (never in this file, so it stays out of git).
+// Set it once in the Apps Script editor: Project Settings (gear icon) →
+//   Script Properties → Add → name `SUPABASE_SERVICE_ROLE_KEY`, value <the key>.
+function _getSupabaseKey_() {
+  const k = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_ROLE_KEY');
+  if (!k) throw new Error(
+    'SUPABASE_SERVICE_ROLE_KEY is not set. In Apps Script: gear icon (Project Settings) → ' +
+    'Script Properties → Add property → SUPABASE_SERVICE_ROLE_KEY → paste the key from ' +
+    'Supabase Dashboard → Settings → API → service_role secret.'
+  );
+  return k;
+}
 
 const BACKUP_HOUR = 23;   // 23 = 11 PM Asia/Singapore
 const BACKUP_TZ   = 'Asia/Singapore';
@@ -58,8 +71,9 @@ function backupFromSupabase() {
 function fetchTable(name) {
   // Supabase REST defaults to a small page size; pass &limit=100000 to get everything.
   const url = SUPABASE_URL + '/rest/v1/' + name + '?select=*&limit=100000';
+  const key = _getSupabaseKey_();
   const resp = UrlFetchApp.fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+    headers: { apikey: key, Authorization: 'Bearer ' + key },
     muteHttpExceptions: true
   });
   if (resp.getResponseCode() !== 200) {
