@@ -23,8 +23,9 @@ jobs:
       - name: Snapshot Supabase tables to backups/
         env:
           SUPABASE_URL: https://puwdbrsvqbxeanoewycy.supabase.co
-          # Anon key is public by design; the same value lives in index.html
-          SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d2RicnN2cWJ4ZWFub2V3eWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDY2ODIsImV4cCI6MjA5NDEyMjY4Mn0.Hqub2GM1iZuey5qzd2hOlP1G4QV98sigfgshd7p8g1k
+          # Service role key bypasses RLS so the backup can read every row.
+          # Stored as a repo secret (Settings -> Secrets and variables -> Actions).
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TZ: Asia/Singapore
         run: |
           set -e
