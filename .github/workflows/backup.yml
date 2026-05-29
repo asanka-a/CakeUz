@@ -35,8 +35,8 @@ jobs:
           python3 - "$OUT" <<'PY'
           import urllib.request, json, os, sys
           tables = [
-              'ingredients','price_history','recipes','recipe_ingredients',
-              'orders','shopping_trips','shopping_items','activity_log'
+              'customers','ingredients','price_history','recipes','recipe_ingredients',
+              'orders','quotations','shopping_trips','shopping_items','activity_log'
           ]
           out = {}
           for t in tables:
