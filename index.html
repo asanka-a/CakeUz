@@ -86,6 +86,23 @@
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-primary);min-height:100vh}
 /* SHELL — sidebar on the left runs floor-to-ceiling; topbar lives only on the right column */
 .app-shell{display:flex;min-height:100vh;align-items:stretch;position:relative}
+/* Login screen */
+#login-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;padding:20px}
+#login-screen.visible{display:flex}
+.login-card{background:var(--surface);padding:32px;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.12);width:360px;max-width:100%}
+.login-card h1{margin:0 0 4px;font-family:'Playfair Display',serif;font-size:28px;color:var(--text-primary)}
+.login-card .login-sub{margin:0 0 22px;color:var(--text-muted);font-size:13px}
+.login-card label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em}
+.login-card input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface-soft);color:var(--text-primary);font-family:inherit;box-sizing:border-box}
+.login-card input:focus{outline:none;border-color:var(--caramel);box-shadow:0 0 0 3px var(--surface-banner)}
+.login-card .login-row{margin-bottom:14px}
+#login-error{color:var(--danger);font-size:12px;margin-bottom:12px;min-height:16px;line-height:1.4}
+.login-card button[type="submit"]{width:100%}
+.app-shell{display:none}
+.app-shell.visible{display:flex}
+.logout-btn{font-size:12px;padding:5px 10px;border:1px solid var(--border);background:var(--surface-soft);color:var(--text-secondary);border-radius:6px;cursor:pointer;margin-left:8px}
+.logout-btn:hover{background:var(--surface);color:var(--text-primary)}
+.user-chip{font-size:11px;color:var(--text-muted);margin-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 /* Continuous vertical divider that nothing can obscure (sits above the topbar shadow) */
 .app-shell::after{content:'';position:absolute;top:0;left:220px;width:1px;height:100%;background:var(--border);z-index:120;pointer-events:none}
 .sidebar{width:220px;flex-shrink:0;background:var(--warm-white);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:visible;z-index:50}
@@ -209,6 +226,22 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 </style>
 </head>
 <body>
+<div id="login-screen">
+  <form class="login-card" onsubmit="handleLogin(event)">
+    <h1>CakeUz</h1>
+    <p class="login-sub">Sign in to continue</p>
+    <div class="login-row">
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="email" required autofocus>
+    </div>
+    <div class="login-row">
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" required>
+    </div>
+    <div id="login-error"></div>
+    <button class="btn btn-primary" type="submit" id="login-submit">Sign in</button>
+  </form>
+</div>
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -230,6 +263,8 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
   <div class="right-col">
     <div class="topbar">
       <button id="theme-btn" class="theme-btn" onclick="cycleTheme()" title="Toggle theme (auto / light / dark)">🌗 Auto</button>
+      <span id="topbar-user" class="user-chip"></span>
+      <button id="logout-btn" class="logout-btn" onclick="handleLogout()" title="Sign out">Sign out</button>
       <div class="topbar-date" id="topbar-date"></div>
     </div>
     <main class="main">
@@ -3588,38 +3623,93 @@ function showOrderDetail(id){
 }
 
 
+// ─── AUTH ─────────────────────────────────────────────────────
+// CakeUz uses Supabase Auth (email + password). Accounts are pre-created
+// in the Supabase Dashboard; public sign-up is disabled. Once RLS is on,
+// the anon key alone has no access — every read/write requires a session.
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('visible');
+  document.querySelector('.app-shell').classList.remove('visible');
+}
+function showAppShell(session) {
+  document.getElementById('login-screen').classList.remove('visible');
+  document.querySelector('.app-shell').classList.add('visible');
+  const chip = document.getElementById('topbar-user');
+  if (chip && session && session.user) chip.textContent = session.user.email || '';
+}
+async function handleLogin(ev) {
+  ev.preventDefault();
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      err.textContent = error.message || 'Sign-in failed.';
+    }
+    // success → onAuthStateChange triggers the app load
+  } catch (e) {
+    err.textContent = e.message || 'Sign-in failed.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+async function handleLogout() {
+  await sb.auth.signOut();
+  // onAuthStateChange handles UI swap + reload
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────
+async function loadDataIntoState() {
+  showLoading('Loading your data...');
+  const result = await dbGet('load');
+  if (result && result.ok) {
+    S.ingredients   = result.ingredients   || [];
+    S.recipes       = result.recipes       || [];
+    S.orders        = result.orders        || [];
+    S.shoppingTrips = result.shoppingTrips || [];
+    S.quotations    = result.quotations    || [];
+    S.customers     = result.customers     || [];
+    S.priceHistory  = result.priceHistory  || {};
+    activityLog.length = 0;
+    (result.activityLog || []).forEach(l => activityLog.push(l));
+    S.nextIngId       = S.ingredients.length   ? Math.max(...S.ingredients.map(i=>i.id))   + 1 : 1;
+    S.nextRecipeId    = S.recipes.length       ? Math.max(...S.recipes.map(r=>r.id))       + 1 : 1;
+    S.nextOrderId     = S.orders.length        ? Math.max(...S.orders.map(o=>o.id))        + 1 : 1;
+    S.nextTripId      = S.shoppingTrips.length ? Math.max(...S.shoppingTrips.map(t=>t.id)) + 1 : 1;
+    S.nextQuotationId = S.quotations.length    ? Math.max(...S.quotations.map(q=>q.id))    + 1 : 1;
+    S.nextCustomerId  = S.customers.length     ? Math.max(...S.customers.map(c=>c.id))     + 1 : 1;
+  } else {
+    const err = (result && result.error) || 'unknown error';
+    showToast('Could not load data — ' + err, 'error');
+  }
+  hideLoading();
+  renderDashboard();
+}
 async function init() {
   showDbBanner();
-  if (DB_ENABLED) {
-    showLoading('Loading your data...');
-    // load() in the backend self-migrates the schema before reading,
-    // so a single call gets us both up-to-date columns and the data.
-    const result = await dbGet('load');
-    if (result && result.ok) {
-      S.ingredients = result.ingredients || [];
-      S.recipes = result.recipes || [];
-      S.orders = result.orders || [];
-      S.shoppingTrips = result.shoppingTrips || [];
-      S.quotations = result.quotations || [];
-      S.customers = result.customers || [];
-      S.priceHistory = result.priceHistory || {};
-      activityLog.length = 0;
-      (result.activityLog || []).forEach(l => activityLog.push(l));
-      // Next IDs walk past any existing rows
-      S.nextIngId       = S.ingredients.length   ? Math.max(...S.ingredients.map(i=>i.id))   + 1 : 1;
-      S.nextRecipeId    = S.recipes.length       ? Math.max(...S.recipes.map(r=>r.id))       + 1 : 1;
-      S.nextOrderId     = S.orders.length        ? Math.max(...S.orders.map(o=>o.id))        + 1 : 1;
-      S.nextTripId      = S.shoppingTrips.length ? Math.max(...S.shoppingTrips.map(t=>t.id)) + 1 : 1;
-      S.nextQuotationId = S.quotations.length    ? Math.max(...S.quotations.map(q=>q.id))    + 1 : 1;
-      S.nextCustomerId  = S.customers.length     ? Math.max(...S.customers.map(c=>c.id))     + 1 : 1;
-    } else {
-      const err = (result && result.error) || 'unknown error';
-      showToast('Could not load data — ' + err, 'error');
-    }
-    hideLoading();
+  if (!DB_ENABLED) { renderDashboard(); return; }
+  // Auth check — show login or app based on session
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    showAppShell(session);
+    await loadDataIntoState();
+  } else {
+    showLoginScreen();
   }
-  renderDashboard();
+  // React to sign-in / sign-out from this tab or another tab
+  sb.auth.onAuthStateChange((event, sess) => {
+    if (event === 'SIGNED_IN') {
+      // Hard reload to ensure a clean app state with the new session
+      location.reload();
+    } else if (event === 'SIGNED_OUT') {
+      // Wipe in-memory state so a sign-in by a different user starts fresh
+      location.reload();
+    }
+  });
 }
 init();
 
