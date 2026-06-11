@@ -1597,7 +1597,7 @@ function renderShopping(){
               <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${esc(t.shop||'Unnamed shop')} &nbsp;·&nbsp; ${t.items.length} item${t.items.length!==1?'s':''} &nbsp;·&nbsp; <span style="font-weight:600;color:var(--caramel-dark)">${fmtMoney(t.total)}</span></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-              ${t.receiptImg?`<img src="${t.receiptImg}" class="receipt-thumb" onclick="viewReceiptFull(${t.id})" title="View receipt">`:'<div style="width:56px;height:56px;border:1px dashed var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.4">🧾</div>'}
+              ${t.receiptImg?`<img src="${esc(t.receiptImg)}" class="receipt-thumb" onclick="viewReceiptFull(${t.id})" title="View receipt">`:'<div style="width:56px;height:56px;border:1px dashed var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.4">🧾</div>'}
               <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this trip?'))deleteTrip(${t.id})">Del</button>
             </div>
           </div>
@@ -3022,26 +3022,45 @@ function handleReceiptUpload(e){
   };
   reader.readAsDataURL(file);
 }
+// B5: AI receipt scan — routes through the Supabase Edge Function `scan-receipt`
+// which holds the Anthropic API key server-side. Falls back to a clear manual-entry
+// message on any failure (auth, network, bad JSON, or upstream error).
 async function scanWithAI(){
-  if(!receiptB64) return;
-  const btn=document.getElementById('ai-btn'),status=document.getElementById('ai-status');
-  btn.disabled=true; status.innerHTML=`<span class="spinner"></span> Reading receipt...`;
-  const ingList=S.ingredients.map(i=>`${i.id}: ${i.name} (${i.unit})`).join('\n');
-  try{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:receiptMime,data:receiptB64}},{type:"text",text:`Read this grocery receipt. Currency is SGD.\nOur ingredients:\n${ingList}\nMatch receipt items to ingredients. Return ONLY valid JSON array, no markdown:\n[{"ingId":1,"qty":2,"unitPrice":1.20}]\nIf no match, return [].`}]}]})});
-    const data=await res.json();
-    const text=data.content.filter(c=>c.type==='text').map(c=>c.text).join('');
-    const items=JSON.parse(text.replace(/```json|```/g,'').trim());
-    if(!Array.isArray(items)||items.length===0){status.innerHTML='<span style="color:var(--warning)">No matches — add items manually.</span>';btn.disabled=false;return;}
-    document.getElementById('trip-rows').innerHTML='';
-    items.forEach(it=>{
+  if (!receiptB64) return;
+  const btn = document.getElementById('ai-btn');
+  const status = document.getElementById('ai-status');
+  btn.disabled = true;
+  status.innerHTML = `<span class="spinner"></span> Reading receipt...`;
+  const ingredients = S.ingredients.map(i => ({ id: i.id, name: i.name, unit: i.unit }));
+  try {
+    const { data, error } = await sb.functions.invoke('scan-receipt', {
+      body: {
+        imageBase64: receiptB64,
+        mediaType:   receiptMime || 'image/jpeg',
+        ingredients
+      }
+    });
+    if (error) throw new Error(error.message || String(error));
+    if (data && data.error) throw new Error(data.error);
+    const text  = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+    const items = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!Array.isArray(items) || items.length === 0) {
+      status.innerHTML = '<span style="color:var(--warning)">Could not read receipt. Please enter details manually.</span>';
+      btn.disabled = false;
+      return;
+    }
+    document.getElementById('trip-rows').innerHTML = '';
+    items.forEach(it => {
       const ing = getIng(it.ingId);
       const totalPrice = (Number(it.qty) || 0) * (Number(it.unitPrice) || 0);
       addTripRow({ ingId: it.ingId, qty: it.qty, unit: ing ? ing.unit : 'kg', totalPrice });
     });
-    status.innerHTML=`<span style="color:var(--success)">✓ Found ${items.length} item${items.length!==1?'s':''}. Review below.</span>`;
-  }catch(err){status.innerHTML=`<span style="color:var(--danger)">Error: ${err.message}</span>`;}
-  btn.disabled=false;
+    status.innerHTML = `<span style="color:var(--success)">✓ Found ${items.length} item${items.length!==1?'s':''}. Review below.</span>`;
+  } catch (err) {
+    console.error('Receipt scan failed:', err);
+    status.innerHTML = '<span style="color:var(--danger)">Could not read receipt. Please enter details manually.</span>';
+  }
+  btn.disabled = false;
 }
 async function saveTrip(){
   const date=document.getElementById('m-tdate').value,shop=document.getElementById('m-tshop').value;
