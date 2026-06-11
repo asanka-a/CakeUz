@@ -233,6 +233,20 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 .status-accepted{background:#D1FAE5;color:#065F46}
 .status-rejected{background:#FEE2E2;color:#991B1B}
 .status-expired {background:#F3F4F6;color:#6B7280}
+/* Payment status badges (B1) */
+.pay-pill{display:inline-block;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap}
+.pay-unpaid  {background:#FEE2E2;color:#991B1B}
+.pay-deposit {background:#FEF3C7;color:#92400E}
+.pay-paid    {background:#D1FAE5;color:#065F46}
+.dash-pay-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:1rem}
+.dash-pay-card h3{margin:0;font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em}
+.dash-pay-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.dash-pay-tile{background:var(--surface-soft);border-radius:8px;padding:12px 14px;cursor:pointer;border:0;text-align:left;font:inherit;color:inherit;transition:background 0.15s}
+.dash-pay-tile:hover{background:var(--surface-banner)}
+.dash-pay-tile .pay-label{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+.dash-pay-tile .pay-val{font-size:22px;font-weight:700;color:var(--text-primary);margin-top:4px}
+.dash-pay-tile.overdue .pay-val{color:#991B1B}
+@media (max-width:720px){.dash-pay-row{grid-template-columns:1fr}}
 .confirm-row > td{background:var(--surface-banner);padding:10px 14px;font-size:13px;color:var(--text-primary);border-top:1px dashed var(--caramel)}
 /* Multi-select column + floating bulk action bar (A4) */
 .bulk-th{width:40px;text-align:center}
@@ -430,7 +444,12 @@ async function loadAllFromSupabase() {
         ingredientCost: Number(o.ingredient_cost || 0),
         cakeCost: Number(o.cake_cost || 0),
         ingredientSnapshot: Array.isArray(o.ingredient_snapshot) ? o.ingredient_snapshot : [],
-        completedDate: o.completed_date || ''
+        completedDate: o.completed_date || '',
+        // B1: payment tracking
+        depositAmount: Number(o.deposit_amount || 0),
+        depositDate:   o.deposit_date || '',
+        balanceAmount: Number(o.balance_amount || 0),
+        balanceDate:   o.balance_date || ''
       };
     });
 
@@ -515,6 +534,7 @@ async function dispatchWrite(action, d) {
     case 'editOrder':          return sbEditOrder(d);
     case 'updateOrderStatus':  return sbUpdateOrderStatus(d);
     case 'deleteOrder':        return sbDeleteOrder(d);
+    case 'updateOrderPayment': return sbUpdateOrderPayment(d);
     case 'addShoppingTrip':    return sbAddShoppingTrip(d);
     case 'deleteShoppingTrip': return sbDeleteShoppingTrip(d);
     case 'addLog':             return sbAddLog(d);
@@ -682,6 +702,16 @@ async function sbEditOrder(d) {
   const { error } = await sb.from('orders').update(row).eq('id', d.id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+async function sbUpdateOrderPayment(d) {
+  const updates = {
+    deposit_amount: d.depositAmount ?? 0,
+    deposit_date:   d.depositDate || null,
+    balance_amount: d.balanceAmount ?? 0,
+    balance_date:   d.balanceDate || null
+  };
+  const { error } = await sb.from('orders').update(updates).eq('id', d.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 async function sbUpdateOrderStatus(d) {
   const updates = { status: d.status };
@@ -1062,6 +1092,24 @@ function effectiveTotalRevenue(o, recipe) {
 function effectiveTotalCost(o, recipe) {
   return effectiveCakeCost(o, recipe) + addonTotals(o).cost;
 }
+// invoice_total = total_revenue + transport_cost — what the customer pays
+function effectiveInvoiceTotal(o, recipe) {
+  return effectiveTotalRevenue(o, recipe) + (Number(o.transportCost) || 0);
+}
+// B1: payment status helper. Order is fully paid once a balance date is recorded,
+// deposit paid when only a deposit date is recorded, otherwise unpaid.
+function getPaymentStatus(o) {
+  if (o.balanceDate) return 'Fully Paid';
+  if (o.depositDate) return 'Deposit Paid';
+  return 'Unpaid';
+}
+// Programmatic tab navigation that also updates the sidebar "active" state.
+// Used by clickable dashboard widgets that drop the user into a pre-filtered Orders tab.
+function navTo(tab) {
+  const btn = Array.from(document.querySelectorAll('.nav-btn'))
+    .find(b => (b.getAttribute('onclick') || '').includes("'" + tab + "'"));
+  if (btn) btn.click(); else switchTab(tab);
+}
 
 const ingOpts = (sel=null) => S.ingredients.map(i=>`<option value="${i.id}"${sel===i.id?' selected':''}>${esc(i.name)} (${esc(i.unit)})</option>`).join('');
 const recipeOpts = () => S.recipes.map(r=>`<option value="${r.id}">${esc(r.name)} — ${fmtMoney(r.sellPrice)}</option>`).join('');
@@ -1162,6 +1210,13 @@ function renderDashboard(){
   const lowStock=S.ingredients.filter(i=>i.stock<1).length;
   const recentOrders=[...S.orders].reverse().slice(0,5);
   const lowItems=S.ingredients.filter(i=>i.stock<1);
+  // B1: payments widget — outstanding revenue, deposits held, overdue count
+  const todayKeyDash = today();
+  const outstanding = S.orders.filter(o => getPaymentStatus(o) === 'Unpaid')
+    .reduce((s,o)=> s + effectiveInvoiceTotal(o, getRecipe(o.recipeId)), 0);
+  const depositsHeld = S.orders.filter(o => o.depositDate && !o.balanceDate)
+    .reduce((s,o)=> s + (Number(o.depositAmount) || 0), 0);
+  const overdueCount = S.orders.filter(o => o.dueDate && dateKey(o.dueDate) < todayKeyDash && getPaymentStatus(o) !== 'Fully Paid').length;
   document.getElementById('tab-dashboard').innerHTML=`
     <div class="hero-stat">
       <div>
@@ -1176,6 +1231,23 @@ function renderDashboard(){
       <div class="metric"><div class="metric-label">Low Stock Alerts</div><div class="metric-val ${lowStock>0?'red':'green'}">${lowStock}</div></div>
       <div class="metric"><div class="metric-label">Recipes</div><div class="metric-val">${S.recipes.length}</div></div>
       <div class="metric"><div class="metric-label">Shopping Trips</div><div class="metric-val">${S.shoppingTrips.length}</div></div>
+    </div>
+    <div class="dash-pay-card">
+      <h3>Payments</h3>
+      <div class="dash-pay-row">
+        <button class="dash-pay-tile" onclick="gotoOrdersWithPaymentFilter('unpaid')" title="Sum of invoice total for orders with no deposit and no balance recorded. Click to view.">
+          <span class="pay-label">Total Outstanding</span>
+          <span class="pay-val">${fmtMoney(outstanding)}</span>
+        </button>
+        <button class="dash-pay-tile" onclick="gotoOrdersWithPaymentFilter('deposit')" title="Sum of deposits taken on orders where the balance has not yet been recorded. Click to view.">
+          <span class="pay-label">Deposits Held</span>
+          <span class="pay-val">${fmtMoney(depositsHeld)}</span>
+        </button>
+        <button class="dash-pay-tile ${overdueCount>0?'overdue':''}" onclick="gotoOrdersWithPaymentFilter('unpaid')" title="Orders past their due date that aren't fully paid. Click to view unpaid orders.">
+          <span class="pay-label">Overdue</span>
+          <span class="pay-val">${overdueCount}</span>
+        </button>
+      </div>
     </div>
     <div class="two-col">
       <div class="card">
@@ -1362,6 +1434,7 @@ function renderOrders(){
         case 'margin':   return totalRev > 0 ? ((totalRev - totalCost) / totalRev * 100) : 0;
         case 'due':      return dateKey(o.dueDate);
         case 'status':   return o.status || '';
+        case 'payment':  return getPaymentStatus(o);
         default: return null;
       }
     });
@@ -1374,6 +1447,14 @@ function renderOrders(){
     });
   }
   const todayKey = today();
+  // B1: payment filter — applied AFTER sort so the visible set respects both
+  if (_orderPaymentFilter) {
+    const want = _orderPaymentFilter === 'unpaid'  ? 'Unpaid'
+              : _orderPaymentFilter === 'deposit' ? 'Deposit Paid'
+              : _orderPaymentFilter === 'paid'    ? 'Fully Paid'
+              : null;
+    if (want) orders = orders.filter(o => getPaymentStatus(o) === want);
+  }
   // Aggregates include add-ons; transport is excluded (it's a pass-through, never in profit)
   const doneOrders = orders.filter(o=>o.status==='done');
   const totalRevenueDone = doneOrders.reduce((s,o)=> s + effectiveTotalRevenue(o, getRecipe(o.recipeId)), 0);
@@ -1387,19 +1468,32 @@ function renderOrders(){
       <div class="metric"><div class="metric-label">Profit (done)</div><div class="metric-val ${totalProfitDone>=0?'green':'red'}">${fmtMoney(totalProfitDone)}</div></div>
     </div>
     <div class="card">
-      <div class="card-head"><span class="card-title">Orders</span><button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button></div>
+      <div class="card-head">
+        <span class="card-title">Orders</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--text-secondary)">Payment:</span>
+          <select onchange="setOrderPaymentFilter(this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+            <option value=""${_orderPaymentFilter===''?' selected':''}>All</option>
+            <option value="unpaid"${_orderPaymentFilter==='unpaid'?' selected':''}>Unpaid</option>
+            <option value="deposit"${_orderPaymentFilter==='deposit'?' selected':''}>Deposit Paid</option>
+            <option value="paid"${_orderPaymentFilter==='paid'?' selected':''}>Fully Paid</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button>
+        </div>
+      </div>
       <table>
         <thead><tr>
           <th class="bulk-th"><input type="checkbox" id="selectAll-orders" class="bulk-select-all" onchange="toggleSelectAll('orders', this)" title="Select all"></th>
-          ${sortableTh('orders','customer','Customer','16%')}
-          ${sortableTh('orders','phone','Phone','11%')}
-          ${sortableTh('orders','item','Item','18%')}
+          ${sortableTh('orders','customer','Customer','14%')}
+          ${sortableTh('orders','phone','Phone','10%')}
+          ${sortableTh('orders','item','Item','16%')}
           ${sortableTh('orders','qty','Qty','5%')}
-          ${sortableTh('orders','sell','Sell','10%')}
-          ${sortableTh('orders','cost','Cost','10%')}
-          ${sortableTh('orders','margin','Margin','7%')}
+          ${sortableTh('orders','sell','Sell','9%')}
+          ${sortableTh('orders','cost','Cost','9%')}
+          ${sortableTh('orders','margin','Margin','6%')}
           ${sortableTh('orders','due','Due','9%')}
-          ${sortableTh('orders','status','Status','8%')}
+          ${sortableTh('orders','status','Status','7%')}
+          ${sortableTh('orders','payment','Payment','9%')}
           <th style="width:6%"></th>
         </tr></thead>
         <tbody>${orders.map(o => {
@@ -1423,6 +1517,7 @@ function renderOrders(){
               <option value="pending"${o.status==='pending'?' selected':''}>Pending</option>
               <option value="done"${o.status==='done'?' selected':''}>Done</option>
             </select>` : `<span class="badge ${o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span>`}</td>
+            <td>${(()=>{const ps=getPaymentStatus(o);const cls=ps==='Unpaid'?'pay-unpaid':ps==='Fully Paid'?'pay-paid':'pay-deposit';return `<span class="pay-pill ${cls}">${ps}</span>`;})()}</td>
             <td><button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
@@ -3559,6 +3654,11 @@ async function saveEditOrder(id){
   closeModal(); renderOrders();
   await persistWrite('editOrder', { id, ...orderRest }, activityLog[0]);
 }
+// ─── B1: Order payment filter ───────────────────────────────────────────────
+let _orderPaymentFilter = ''; // '' | 'unpaid' | 'deposit' | 'paid'
+function setOrderPaymentFilter(v){ _orderPaymentFilter = v || ''; renderOrders(); }
+function gotoOrdersWithPaymentFilter(v){ _orderPaymentFilter = v || ''; navTo('orders'); }
+
 // ─── A4: Multi-select + bulk action bar ─────────────────────────────────────
 const _selectedOrderIds = new Set();
 const _selectedIngIds   = new Set();
@@ -3849,6 +3949,18 @@ function showOrderDetail(id){
       <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport (billed separately)</span><span>${fmtMoney(transport)}</span></div>
       <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
     </div>
+    <div class="modal-section-title">Payments <span id="m-pay-status" class="pay-pill ${getPaymentStatus(o)==='Unpaid'?'pay-unpaid':getPaymentStatus(o)==='Fully Paid'?'pay-paid':'pay-deposit'}" style="margin-left:8px;text-transform:none;letter-spacing:0">${getPaymentStatus(o)}</span></div>
+    <div id="m-pay-invoice" data-total="${invoiceTotal}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Deposit amount (${CURRENCY})</label><input id="m-pay-deposit-amt" type="number" step="0.01" value="${o.depositAmount || 0}" oninput="recalcBalanceAmount()"></div>
+      <div class="form-group"><label>Deposit date</label><input id="m-pay-deposit-date" type="date" value="${o.depositDate || ''}" onchange="refreshPaymentStatusPreview()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Balance amount (${CURRENCY})</label><input id="m-pay-balance-amt" type="number" step="0.01" value="${o.balanceAmount || Math.max(0, invoiceTotal - (Number(o.depositAmount)||0)).toFixed(2)}"></div>
+      <div class="form-group"><label>Balance date</label><input id="m-pay-balance-date" type="date" value="${o.balanceDate || ''}" onchange="refreshPaymentStatusPreview()"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:-4px">Balance auto-fills as (Invoice total − Deposit). Editable. Setting a Balance date marks the order Fully Paid.</div>
+    <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveOrderPayment(${o.id})">Save payment</button></div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
       <button class="btn ${o.status==='pending'?'btn-chocolate':''}" onclick="closeModal();cycleStatus(${o.id})">${o.status==='pending'?'✓ Mark Done':'Undo (back to pending)'}</button>
@@ -3857,6 +3969,44 @@ function showOrderDetail(id){
       <button class="btn" onclick="closeModal()">Close</button>
       <button class="btn btn-danger" style="margin-left:auto" onclick="if(confirm('Delete this order? This cannot be undone.')){closeModal();deleteOrder(${o.id})}">Delete</button>
     </div>`, { wide: true });
+}
+// B1: payment section handlers
+function recalcBalanceAmount(){
+  const totalEl = document.getElementById('m-pay-invoice');
+  const invoiceTotal = totalEl ? Number(totalEl.dataset.total) || 0 : 0;
+  const dep = parseFloat(document.getElementById('m-pay-deposit-amt').value) || 0;
+  const bal = Math.max(0, invoiceTotal - dep);
+  const balEl = document.getElementById('m-pay-balance-amt');
+  if (balEl) balEl.value = bal.toFixed(2);
+  refreshPaymentStatusPreview();
+}
+function refreshPaymentStatusPreview(){
+  const depDate = (document.getElementById('m-pay-deposit-date')||{}).value || '';
+  const balDate = (document.getElementById('m-pay-balance-date')||{}).value || '';
+  const el = document.getElementById('m-pay-status');
+  if (!el) return;
+  let status = 'Unpaid', cls = 'pay-unpaid';
+  if (balDate)      { status = 'Fully Paid';   cls = 'pay-paid'; }
+  else if (depDate) { status = 'Deposit Paid'; cls = 'pay-deposit'; }
+  el.className = 'pay-pill ' + cls;
+  el.textContent = status;
+}
+async function saveOrderPayment(id){
+  const o = S.orders.find(x => x.id === id); if (!o) return;
+  const depositAmount = parseFloat(document.getElementById('m-pay-deposit-amt').value) || 0;
+  const depositDate   = document.getElementById('m-pay-deposit-date').value || '';
+  const balanceAmount = parseFloat(document.getElementById('m-pay-balance-amt').value) || 0;
+  const balanceDate   = document.getElementById('m-pay-balance-date').value || '';
+  const before = { depositAmount: Number(o.depositAmount)||0, depositDate: o.depositDate||'', balanceAmount: Number(o.balanceAmount)||0, balanceDate: o.balanceDate||'' };
+  Object.assign(o, { depositAmount, depositDate, balanceAmount, balanceDate });
+  const after = { depositAmount, depositDate, balanceAmount, balanceDate };
+  const fc = diffFields(before, after);
+  const status = getPaymentStatus(o);
+  logAction('edit','Order payment updated', `#${id} ${o.customer} — ${status} (deposit ${fmtMoney(depositAmount)}, balance ${fmtMoney(balanceAmount)})`, 'order', id, fc);
+  showToast(`Payment saved — ${status}`, 'success');
+  _modalDirty = false;  // payment is saved; let Close skip the dirty prompt
+  renderOrders();
+  await persistWrite('updateOrderPayment', { id, depositAmount, depositDate, balanceAmount, balanceDate }, activityLog[0]);
 }
 
 
