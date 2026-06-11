@@ -4154,7 +4154,7 @@ function showOrderDetail(id){
     <div class="modal-section-title">WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— opens in a new tab with the message pre-filled</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;${o.customerPhone?'':'opacity:0.55'}">
       <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Send order confirmation':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'ORDER_CONFIRM')">📱 Order Confirmed</button>
-      <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Tell the customer it\\'s ready':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'READY_COLLECT')">📱 Ready to Collect</button>
+      <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Tell the customer the order is ready':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'READY_COLLECT')">📱 Ready to Collect</button>
       <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Send a balance-due reminder':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'PAYMENT_REMINDER')">📱 Payment Reminder</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
