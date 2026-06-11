@@ -234,6 +234,19 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 .status-rejected{background:#FEE2E2;color:#991B1B}
 .status-expired {background:#F3F4F6;color:#6B7280}
 .confirm-row > td{background:var(--surface-banner);padding:10px 14px;font-size:13px;color:var(--text-primary);border-top:1px dashed var(--caramel)}
+/* Multi-select column + floating bulk action bar (A4) */
+.bulk-th{width:40px;text-align:center}
+.bulk-td{text-align:center}
+.row-select,.bulk-select-all{accent-color:#E84A0C;cursor:pointer;width:16px;height:16px;vertical-align:middle}
+#bulk-action-bar{position:fixed;bottom:0;left:220px;right:0;height:56px;background:var(--surface);border-top:3px solid #E84A0C;box-shadow:0 -2px 8px rgba(0,0,0,0.08);display:none;align-items:center;padding:0 24px;gap:16px;z-index:100;color:var(--text-primary);font-size:13px}
+#bulk-action-bar.visible{display:flex}
+#bulk-action-bar .bulk-count{font-weight:600}
+#bulk-action-bar .bulk-progress{color:var(--text-muted);font-size:12px;margin-left:auto}
+#bulk-action-bar .bulk-clear{background:none;border:0;color:var(--text-muted);font-size:12px;cursor:pointer;padding:6px 10px;margin-left:auto;text-decoration:underline}
+#bulk-action-bar .bulk-clear:hover{color:var(--text-primary)}
+#bulk-action-bar .btn-orange{background:#E84A0C;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+#bulk-action-bar .btn-orange:disabled{opacity:0.55;cursor:not-allowed}
+@media (max-width:720px){#bulk-action-bar{left:0;padding:0 12px;gap:10px}}
 </style>
 </head>
 <body>
@@ -293,6 +306,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
   </div>
 </div>
 <div id="modal-root"></div>
+<div id="bulk-action-bar"></div>
 
 <script>
 
@@ -1064,6 +1078,10 @@ function switchTab(tab,btn){
   // Sort state on Shopping + Activity Log resets on tab change (per A1 spec)
   _shoppingSort = { key: 'date', dir: 'desc' };
   _logSort      = { key: 'time', dir: 'desc' };
+  // A4: multi-select sets reset on tab change
+  _selectedOrderIds.clear();
+  _selectedIngIds.clear();
+  renderBulkBar(tab);
   ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,quotations:renderQuotations,customers:renderCustomers,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
 }
 // Sort state for the non-table views (Shopping cards, Activity Log feed) — module-scoped, reset on tab change
@@ -1200,6 +1218,7 @@ function renderInventory(){
       <div class="card-head"><span class="card-title">Ingredients & Stock</span><button class="btn btn-primary btn-sm" onclick="showAddIngredient()">+ Add ingredient</button></div>
       <table>
         <thead><tr>
+          <th class="bulk-th"><input type="checkbox" id="selectAll-inventory" class="bulk-select-all" onchange="toggleSelectAll('inventory', this)" title="Select all"></th>
           ${sortableTh('inventory','name','Name','38%')}
           ${sortableTh('inventory','stock','Stock','12%')}
           ${sortableTh('inventory','unit','Unit','10%')}
@@ -1214,6 +1233,7 @@ function renderInventory(){
           const chgHtml=prev&&chg!==0?`<span class="${chg>0?'price-up':'price-down'}">${chg>0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>`:'';
           const st=i.stock<0.5?'danger':i.stock<1?'warn':'ok';
           return `<tr>
+            <td class="bulk-td"><input type="checkbox" class="row-select" data-id="${i.id}" ${_selectedIngIds.has(i.id)?'checked':''} onchange="toggleRowSelect('inventory',${i.id},this.checked)"></td>
             <td style="font-weight:500">${esc(i.name)}</td><td>${i.stock}</td><td>${esc(i.unit)}</td>
             <td>${fmtMoney(i.cost)} ${chgHtml}</td>
             <td><span class="badge badge-${st}">${st==='danger'?'Critical':st==='warn'?'Low':'In stock'}</span></td>
@@ -1221,6 +1241,7 @@ function renderInventory(){
         }).join('')}</tbody>
       </table>
     </div>`;
+  updateBulkHeaderState('inventory');
 }
 
 // ─── SHOPPING ────────────────────────────────────────────────────────────────
@@ -1369,6 +1390,7 @@ function renderOrders(){
       <div class="card-head"><span class="card-title">Orders</span><button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button></div>
       <table>
         <thead><tr>
+          <th class="bulk-th"><input type="checkbox" id="selectAll-orders" class="bulk-select-all" onchange="toggleSelectAll('orders', this)" title="Select all"></th>
           ${sortableTh('orders','customer','Customer','16%')}
           ${sortableTh('orders','phone','Phone','11%')}
           ${sortableTh('orders','item','Item','18%')}
@@ -1388,6 +1410,7 @@ function renderOrders(){
           const cost = effectiveTotalCost(o, r);
           const margin = sell > 0 ? Math.round((sell - cost) / sell * 100) : 0;
           return `<tr>
+            <td class="bulk-td"><input type="checkbox" class="row-select" data-id="${o.id}" ${_selectedOrderIds.has(o.id)?'checked':''} onchange="toggleRowSelect('orders',${o.id},this.checked)"></td>
             <td style="font-weight:500">${o.customerId ? `<a href="#" onclick="showCustomerDetail(${o.customerId});return false" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text-muted)">${esc(o.customer)}</a>` : esc(o.customer)}</td>
             <td style="font-size:11px;color:var(--text-secondary)">${esc(o.customerPhone || '—')}</td>
             <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
@@ -1404,6 +1427,7 @@ function renderOrders(){
         }).join('')}</tbody>
       </table>
     </div>`;
+  updateBulkHeaderState('orders');
 }
 
 // ─── QUOTATIONS ──────────────────────────────────────────────────────────────
@@ -2571,7 +2595,7 @@ function showIngredientDetail(id){
 
 // Shopping
 let receiptB64=null,receiptMime=null;
-function showAddTrip(){
+function showAddTrip(prefillIngIds){
   receiptB64=null; receiptMime=null;
   showModal(`<div class="modal-title">New Shopping Trip</div>
     <div class="form-row">
@@ -2596,7 +2620,11 @@ function showAddTrip(){
       <button class="btn btn-primary" onclick="saveTrip()">Save trip</button>
       <button class="btn" onclick="tryCloseModal()">Cancel</button>
     </div>`);
-  addTripRow();
+  if (Array.isArray(prefillIngIds) && prefillIngIds.length) {
+    prefillIngIds.forEach(id => addTripRow({ ingId: id, qty: 0, totalPrice: 0 }));
+  } else {
+    addTripRow();
+  }
 }
 function addTripRow(prefill){
   const div=document.createElement('div'); div.className='ing-row';
@@ -3531,6 +3559,115 @@ async function saveEditOrder(id){
   closeModal(); renderOrders();
   await persistWrite('editOrder', { id, ...orderRest }, activityLog[0]);
 }
+// ─── A4: Multi-select + bulk action bar ─────────────────────────────────────
+const _selectedOrderIds = new Set();
+const _selectedIngIds   = new Set();
+let _bulkProcessing = false;
+function _activeTab(){
+  const sec = document.querySelector('.section.active');
+  if (!sec) return null;
+  return sec.id.replace(/^tab-/, '');
+}
+function toggleRowSelect(context, id, checked){
+  const set = context === 'orders' ? _selectedOrderIds : _selectedIngIds;
+  if (checked) set.add(id); else set.delete(id);
+  // Update the header checkbox indeterminate / checked state
+  updateBulkHeaderState(context);
+  renderBulkBar(context);
+}
+function toggleSelectAll(context, headerEl){
+  const set = context === 'orders' ? _selectedOrderIds : _selectedIngIds;
+  const rowChecks = document.querySelectorAll(`#tab-${context==='orders'?'orders':'inventory'} .row-select`);
+  set.clear();
+  if (headerEl.checked) {
+    rowChecks.forEach(c => {
+      c.checked = true;
+      const id = parseInt(c.dataset.id);
+      if (!Number.isNaN(id)) set.add(id);
+    });
+  } else {
+    rowChecks.forEach(c => { c.checked = false; });
+  }
+  headerEl.indeterminate = false;
+  renderBulkBar(context);
+}
+function updateBulkHeaderState(context){
+  const set = context === 'orders' ? _selectedOrderIds : _selectedIngIds;
+  const rowChecks = document.querySelectorAll(`#tab-${context==='orders'?'orders':'inventory'} .row-select`);
+  const visibleCount = rowChecks.length;
+  const sel = set.size;
+  const headerId = context === 'orders' ? 'selectAll-orders' : 'selectAll-inventory';
+  const header = document.getElementById(headerId);
+  if (!header) return;
+  header.checked      = sel > 0 && sel === visibleCount;
+  header.indeterminate = sel > 0 && sel < visibleCount;
+}
+function clearBulkSelection(context){
+  const set = context === 'orders' ? _selectedOrderIds : _selectedIngIds;
+  set.clear();
+  document.querySelectorAll(`#tab-${context==='orders'?'orders':'inventory'} .row-select`).forEach(c => { c.checked = false; });
+  const headerId = context === 'orders' ? 'selectAll-orders' : 'selectAll-inventory';
+  const header = document.getElementById(headerId);
+  if (header) { header.checked = false; header.indeterminate = false; }
+  renderBulkBar(context);
+}
+function renderBulkBar(tabOverride){
+  const tab = tabOverride || _activeTab();
+  const bar = document.getElementById('bulk-action-bar');
+  if (!bar) return;
+  const set = tab === 'orders' ? _selectedOrderIds : tab === 'inventory' ? _selectedIngIds : null;
+  if (!set || set.size === 0) {
+    bar.classList.remove('visible');
+    bar.innerHTML = '';
+    return;
+  }
+  const n = set.size;
+  if (tab === 'orders') {
+    bar.innerHTML = `
+      <span class="bulk-count">${n} order${n===1?'':'s'} selected</span>
+      <button class="btn-orange" id="bulk-mark-done-btn" onclick="bulkMarkDone()" ${_bulkProcessing?'disabled':''}>Mark as Done</button>
+      <span class="bulk-progress" id="bulk-progress"></span>
+      <button class="bulk-clear" onclick="clearBulkSelection('orders')">Clear selection</button>`;
+  } else if (tab === 'inventory') {
+    bar.innerHTML = `
+      <span class="bulk-count">${n} item${n===1?'':'s'} selected</span>
+      <button class="btn-orange" onclick="bulkAddToShoppingList()">Add to Shopping List</button>
+      <span class="bulk-progress" id="bulk-progress"></span>
+      <button class="bulk-clear" onclick="clearBulkSelection('inventory')">Clear selection</button>`;
+  }
+  bar.classList.add('visible');
+}
+async function bulkMarkDone(){
+  if (_bulkProcessing) return;
+  const ids = [...(_selectedOrderIds)];
+  if (!ids.length) return;
+  _bulkProcessing = true;
+  renderBulkBar('orders');
+  const progress = document.getElementById('bulk-progress');
+  let processed = 0, skipped = 0;
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const o = S.orders.find(x => x.id === id);
+    if (progress) progress.textContent = `Processing ${i+1} of ${ids.length}…`;
+    if (!o || o.status !== 'pending') { skipped++; continue; }
+    try { await cycleStatus(id); processed++; }
+    catch (e) { console.warn('cycleStatus failed for #' + id, e); skipped++; }
+  }
+  _bulkProcessing = false;
+  if (progress) progress.textContent = `${processed} order${processed===1?'':'s'} marked as Done${skipped?`, ${skipped} skipped`:''}. Stock updated.`;
+  _selectedOrderIds.clear();
+  // Re-render so the row checkboxes visually clear; then hide the bar after a short pause
+  // so the user sees the confirmation message in the bar before it disappears.
+  renderOrders();
+  setTimeout(() => renderBulkBar('orders'), 1800);
+}
+function bulkAddToShoppingList(){
+  const ids = [...(_selectedIngIds)];
+  if (!ids.length) return;
+  clearBulkSelection('inventory');
+  showAddTrip(ids);
+}
+
 // ─── A3: Inline status dropdown handlers ────────────────────────────────────
 function onOrderStatusChange(id, sel){
   const newStatus = sel.value;
