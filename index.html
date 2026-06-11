@@ -478,7 +478,9 @@ async function loadAllFromSupabase() {
         depositAmount: Number(o.deposit_amount || 0),
         depositDate:   o.deposit_date || '',
         balanceAmount: Number(o.balance_amount || 0),
-        balanceDate:   o.balance_date || ''
+        balanceDate:   o.balance_date || '',
+        // B4: occasion / category
+        category:      o.category || ''
       };
     });
 
@@ -539,6 +541,7 @@ async function loadAllFromSupabase() {
       address: c.address || '',
       notes: c.notes || '',
       birthday: c.birthday || null,
+      anniversary: c.anniversary || null,
       tags: Array.isArray(c.tags) ? c.tags : [],
       createdAt: c.created_at
     }));
@@ -714,7 +717,8 @@ function orderRowFromForm(d) {
     transport_cost: d.transportCost ?? 0,
     ingredient_cost: d.ingredientCost ?? 0,
     cake_cost: d.cakeCost ?? (d.ingredientCost ?? 0),
-    ingredient_snapshot: d.ingredientSnapshot || []
+    ingredient_snapshot: d.ingredientSnapshot || [],
+    category: d.category || null
   };
 }
 async function sbAddOrder(d) {
@@ -894,6 +898,7 @@ function customerRowFromForm(d) {
     address: d.address || null,
     notes: d.notes || null,
     birthday: d.birthday || null,
+    anniversary: d.anniversary || null,
     tags: Array.isArray(d.tags) ? d.tags : []
   };
 }
@@ -1124,6 +1129,34 @@ function effectiveTotalCost(o, recipe) {
 // invoice_total = total_revenue + transport_cost — what the customer pays
 function effectiveInvoiceTotal(o, recipe) {
   return effectiveTotalRevenue(o, recipe) + (Number(o.transportCost) || 0);
+}
+// B4: order category list — used by the order form select + the Orders filter dropdown.
+// First entry is intentionally blank ("none").
+const ORDER_CATEGORIES = ['', 'Birthday', 'Wedding', 'Anniversary', 'Baby Shower', 'Corporate', 'Graduation', 'Other'];
+// Compute the next upcoming occurrence (MM-DD match) of a date string for the dashboard
+// occasions card. Returns { date, daysUntil } or null if no input.
+function nextOccurrence(isoDate){
+  if (!isoDate) return null;
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(today0.getFullYear(), d.getMonth(), d.getDate());
+  if (next < today0) next = new Date(today0.getFullYear() + 1, d.getMonth(), d.getDate());
+  const daysUntil = Math.round((next - today0) / 86400000);
+  return { date: next, daysUntil };
+}
+function getOccasionsInNext30Days(){
+  const out = [];
+  S.customers.forEach(c => {
+    [['birthday','Birthday','🎂'], ['anniversary','Anniversary','💍']].forEach(([field, label, icon]) => {
+      const nx = nextOccurrence(c[field]);
+      if (!nx || nx.daysUntil > 30) return;
+      out.push({ customer: c, label, icon, date: c[field], daysUntil: nx.daysUntil, occursOn: nx.date });
+    });
+  });
+  out.sort((a, b) => a.daysUntil - b.daysUntil);
+  return out;
 }
 // B1: payment status helper. Order is fully paid once a balance date is recorded,
 // deposit paid when only a deposit date is recorded, otherwise unpaid.
@@ -1402,6 +1435,8 @@ function renderDashboard(){
   const depositsHeld = S.orders.filter(o => o.depositDate && !o.balanceDate)
     .reduce((s,o)=> s + (Number(o.depositAmount) || 0), 0);
   const overdueCount = S.orders.filter(o => o.dueDate && dateKey(o.dueDate) < todayKeyDash && getPaymentStatus(o) !== 'Fully Paid').length;
+  // B4: upcoming birthdays/anniversaries in the next 30 days
+  const occasions = getOccasionsInNext30Days();
   document.getElementById('tab-dashboard').innerHTML=`
     <div class="hero-stat">
       <div>
@@ -1433,6 +1468,31 @@ function renderDashboard(){
           <span class="pay-val">${overdueCount}</span>
         </button>
       </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-head"><span class="card-title">Upcoming Occasions <span style="font-weight:400;color:var(--text-muted);font-size:11px;text-transform:none;letter-spacing:0">— next 30 days</span></span></div>
+      ${occasions.length === 0
+        ? '<div class="empty-state">No upcoming occasions in the next 30 days.</div>'
+        : `<table>
+            <thead><tr>
+              <th style="width:30%">Customer</th>
+              <th style="width:18%">Occasion</th>
+              <th style="width:14%">Date</th>
+              <th style="width:18%">Days away</th>
+              <th style="width:20%">Last order</th>
+            </tr></thead>
+            <tbody>${occasions.map(occ => {
+              const last = S.orders.filter(o => o.customerId === occ.customer.id)
+                .reduce((latest,o) => { const k = dateKey(o.dueDate); return (k && k > latest) ? k : latest; }, '');
+              return `<tr style="cursor:pointer" onclick="showCustomerDetail(${occ.customer.id})">
+                <td style="font-weight:500">${esc(occ.customer.name)}</td>
+                <td>${occ.icon} ${esc(occ.label)}</td>
+                <td>${fmtDate(occ.date)}</td>
+                <td><span class="badge ${occ.daysUntil<=7?'badge-danger':occ.daysUntil<=14?'badge-warn':'badge-ok'}">${occ.daysUntil===0?'today':occ.daysUntil+' day'+(occ.daysUntil===1?'':'s')}</span></td>
+                <td style="color:var(--text-secondary);font-size:12px">${last ? fmtDate(last) : '—'}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>`}
     </div>
     <div class="two-col">
       <div class="card">
@@ -1620,6 +1680,7 @@ function renderOrders(){
         case 'due':      return dateKey(o.dueDate);
         case 'status':   return o.status || '';
         case 'payment':  return getPaymentStatus(o);
+        case 'category': return o.category || '';
         default: return null;
       }
     });
@@ -1639,6 +1700,10 @@ function renderOrders(){
               : _orderPaymentFilter === 'paid'    ? 'Fully Paid'
               : null;
     if (want) orders = orders.filter(o => getPaymentStatus(o) === want);
+  }
+  // B4: category filter
+  if (_orderCategoryFilter) {
+    orders = orders.filter(o => (o.category || '') === _orderCategoryFilter);
   }
   // Aggregates include add-ons; transport is excluded (it's a pass-through, never in profit)
   const doneOrders = orders.filter(o=>o.status==='done');
@@ -1663,22 +1728,27 @@ function renderOrders(){
             <option value="deposit"${_orderPaymentFilter==='deposit'?' selected':''}>Deposit Paid</option>
             <option value="paid"${_orderPaymentFilter==='paid'?' selected':''}>Fully Paid</option>
           </select>
+          <span style="font-size:12px;color:var(--text-secondary)">Category:</span>
+          <select onchange="setOrderCategoryFilter(this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+            ${['', ...ORDER_CATEGORIES.slice(1)].map(c => `<option value="${esc(c)}"${_orderCategoryFilter===c?' selected':''}>${esc(c || 'All')}</option>`).join('')}
+          </select>
           <button class="btn btn-primary btn-sm" onclick="showAddOrder()">+ New order</button>
         </div>
       </div>
       <table>
         <thead><tr>
           <th class="bulk-th"><input type="checkbox" id="selectAll-orders" class="bulk-select-all" onchange="toggleSelectAll('orders', this)" title="Select all"></th>
-          ${sortableTh('orders','customer','Customer','14%')}
-          ${sortableTh('orders','phone','Phone','10%')}
-          ${sortableTh('orders','item','Item','16%')}
-          ${sortableTh('orders','qty','Qty','5%')}
-          ${sortableTh('orders','sell','Sell','9%')}
-          ${sortableTh('orders','cost','Cost','9%')}
+          ${sortableTh('orders','customer','Customer','13%')}
+          ${sortableTh('orders','phone','Phone','8%')}
+          ${sortableTh('orders','item','Item','14%')}
+          ${sortableTh('orders','qty','Qty','4%')}
+          ${sortableTh('orders','sell','Sell','8%')}
+          ${sortableTh('orders','cost','Cost','8%')}
           ${sortableTh('orders','margin','Margin','6%')}
           ${sortableTh('orders','due','Due','9%')}
           ${sortableTh('orders','status','Status','7%')}
-          ${sortableTh('orders','payment','Payment','9%')}
+          ${sortableTh('orders','payment','Payment','8%')}
+          ${sortableTh('orders','category','Category','9%')}
           <th style="width:6%"></th>
         </tr></thead>
         <tbody>${orders.map(o => {
@@ -1703,6 +1773,7 @@ function renderOrders(){
               <option value="done"${o.status==='done'?' selected':''}>Done</option>
             </select>` : `<span class="badge ${o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span>`}</td>
             <td>${(()=>{const ps=getPaymentStatus(o);const cls=ps==='Unpaid'?'pay-unpaid':ps==='Fully Paid'?'pay-paid':'pay-deposit';return `<span class="pay-pill ${cls}">${ps}</span>`;})()}</td>
+            <td style="font-size:11px;color:var(--text-secondary)">${o.category ? esc(o.category) : '—'}</td>
             <td><button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
@@ -1765,13 +1836,15 @@ function renderQuotations(){
           const marginClass = margin >= 40 ? 'badge-ok' : margin >= 20 ? 'badge-warn' : 'badge-danger';
           const qStatuses = ['draft','sent','accepted','rejected','expired'];
           const validQStatus = qStatuses.includes(q.status);
+          // Tech debt: margin is meaningless on rejected / expired quotes — dim them out.
+          const marginDead = q.status === 'rejected' || q.status === 'expired';
           return `<tr>
             <td style="font-weight:500">${esc(q.customer)}</td>
             <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
             <td>${q.qty}</td>
-            <td style="font-weight:500">${fmtMoney(totalRevenue)}</td>
-            <td style="color:var(--text-secondary)">${fmtMoney(totalCost)}</td>
-            <td><span class="badge ${marginClass}">${margin}%</span></td>
+            <td style="font-weight:500${marginDead?';color:var(--text-muted)':''}">${fmtMoney(totalRevenue)}</td>
+            <td style="color:var(--text-secondary)${marginDead?';opacity:0.5':''}">${fmtMoney(totalCost)}</td>
+            <td>${marginDead ? '<span style="color:var(--text-muted);font-size:11px">—</span>' : `<span class="badge ${marginClass}">${margin}%</span>`}</td>
             <td style="font-size:12px;${expired?'color:var(--danger);font-weight:600':''}">${q.validUntil ? fmtDate(q.validUntil) : '—'}${expired?' ⚠':''}</td>
             <td>${validQStatus ? `<select class="status-select status-${q.status}" data-id="${q.id}" onchange="onQuotationStatusChange(${q.id}, this.value)" onclick="event.stopPropagation()">
               ${qStatuses.map(s => `<option value="${s}"${q.status===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
@@ -2184,6 +2257,7 @@ function showCustomerForm(c, mode){
     <div class="form-row">
       <div class="form-group"><label>Email (optional)</label><input id="m-cemail" type="email" value="${esc(c?.email || '')}"></div>
       <div class="form-group"><label>Birthday (optional)</label><input id="m-cbday" type="date" value="${esc(c?.birthday || '')}"></div>
+      <div class="form-group"><label>Anniversary (optional)</label><input id="m-canniv" type="date" value="${esc(c?.anniversary || '')}"></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Address (optional)</label><input id="m-caddr" value="${esc(c?.address || '')}" placeholder="For delivery"></div></div>
     <div class="form-row"><div class="form-group"><label>Tags (comma-separated)</label><input id="m-ctags" value="${esc(tagsStr)}" placeholder="e.g. VIP, corporate"></div></div>
@@ -2205,6 +2279,7 @@ function readCustomerFormPayload(){
     address: document.getElementById('m-caddr').value.trim(),
     notes: document.getElementById('m-cnotes').value.trim(),
     birthday: document.getElementById('m-cbday').value || null,
+    anniversary: document.getElementById('m-canniv').value || null,
     tags
   };
 }
@@ -2228,8 +2303,8 @@ async function saveCustomer(){
 async function saveEditCustomer(id){
   const c = getCustomer(id); if (!c) return;
   const p = readCustomerFormPayload(); if (!p) return;
-  const before = { name: c.name, phone: c.phone, email: c.email, address: c.address, notes: c.notes, birthday: c.birthday, tags: (c.tags||[]).join(', ') };
-  const after  = { name: p.name, phone: p.phone, email: p.email, address: p.address, notes: p.notes, birthday: p.birthday, tags: p.tags.join(', ') };
+  const before = { name: c.name, phone: c.phone, email: c.email, address: c.address, notes: c.notes, birthday: c.birthday, anniversary: c.anniversary, tags: (c.tags||[]).join(', ') };
+  const after  = { name: p.name, phone: p.phone, email: p.email, address: p.address, notes: p.notes, birthday: p.birthday, anniversary: p.anniversary, tags: p.tags.join(', ') };
   const fieldChanges = diffFields(before, after);
   Object.assign(c, p);
   logAction('edit','Customer updated', p.name, 'customer', id, fieldChanges);
@@ -2281,6 +2356,7 @@ function showCustomerDetail(id){
       ${c.email ? `✉️ ${esc(c.email)} &nbsp; ` : ''}
       ${c.address ? `<br>📍 ${esc(c.address)}` : ''}
       ${c.birthday ? `<br>🎂 ${fmtDate(c.birthday)}` : ''}
+      ${c.anniversary ? `<br>💍 ${fmtDate(c.anniversary)}` : ''}
     </div>
     ${tags ? `<div style="margin-bottom:12px">${tags}</div>` : ''}
     ${c.notes ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;padding:10px 12px;background:var(--surface-soft);border-radius:6px;border-left:3px solid var(--caramel);white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
@@ -3509,7 +3585,10 @@ function showOrderForm(o, mode){
       <div class="form-group"><label>Quantity</label><input id="m-oqty" type="number" value="${valQty}" min="1" oninput="updateOrderHelper()"></div>
       <div class="form-group"><label>Due date</label><input id="m-odate" type="date" value="${valDue}"></div>
     </div>
-    <div class="form-row"><div class="form-group"><label>Note (optional)</label><input id="m-onote" value="${esc(valNote)}" placeholder="Special requests..."></div></div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>Note (optional)</label><input id="m-onote" value="${esc(valNote)}" placeholder="Special requests..."></div>
+      <div class="form-group"><label>Category (optional)</label><select id="m-ocategory">${ORDER_CATEGORIES.map(c => `<option value="${esc(c)}"${(o?.category||'')===c?' selected':''}>${esc(c || '— None —')}</option>`).join('')}</select></div>
+    </div>
 
     <div class="modal-section-title">Pricing &amp; cost <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— pre-filled from recipe, editable per order</span></div>
     <div class="form-row">
@@ -3718,6 +3797,7 @@ function readOrderFormPayload(priorSnapshot){
     customerId,
     recipeId, qty,
     note: document.getElementById('m-onote').value,
+    category: document.getElementById('m-ocategory')?.value || '',
     dueDate: document.getElementById('m-odate').value,
     sellPricePerUnit,
     sellPriceSnapshot: sellPricePerUnit,
@@ -3826,6 +3906,7 @@ async function saveEditOrder(id){
     labour: existing.labour, electricity: existing.electricity, overhead: existing.overhead,
     transportCost: existing.transportCost, cakeCost: existing.cakeCost,
     recipeId: existing.recipeId, dueDate: dateKey(existing.dueDate),
+    category: existing.category || '',
     packaging: Array.isArray(existing.packaging) ? existing.packaging : [],
     addons:    Array.isArray(existing.addons)    ? existing.addons    : []
   };
@@ -3835,6 +3916,7 @@ async function saveEditOrder(id){
     labour: p.labour, electricity: p.electricity, overhead: p.overhead,
     transportCost: p.transportCost, cakeCost: p.cakeCost,
     recipeId: p.recipeId, dueDate: p.dueDate,
+    category: p.category || '',
     packaging: p.packaging || [],
     addons:    p.addons    || []
   };
@@ -3848,6 +3930,9 @@ async function saveEditOrder(id){
 let _orderPaymentFilter = ''; // '' | 'unpaid' | 'deposit' | 'paid'
 function setOrderPaymentFilter(v){ _orderPaymentFilter = v || ''; renderOrders(); }
 function gotoOrdersWithPaymentFilter(v){ _orderPaymentFilter = v || ''; navTo('orders'); }
+// ─── B4: Order category filter ──────────────────────────────────────────────
+let _orderCategoryFilter = '';
+function setOrderCategoryFilter(v){ _orderCategoryFilter = v || ''; renderOrders(); }
 
 // ─── A4: Multi-select + bulk action bar ─────────────────────────────────────
 const _selectedOrderIds = new Set();
@@ -4100,6 +4185,7 @@ function showOrderDetail(id){
     <div class="modal-section-title">Order details</div>
     <div class="kv-row"><span class="kv-label">Recipe</span><span class="kv-value"><strong>${r ? esc(r.name) : '?'}</strong> × ${o.qty}</span></div>
     <div class="kv-row"><span class="kv-label">Due</span><span class="kv-value">${fmtDate(o.dueDate)}</span></div>
+    ${o.category ? `<div class="kv-row"><span class="kv-label">Category</span><span class="kv-value">${esc(o.category)}</span></div>` : ''}
     <div class="kv-row"><span class="kv-label">Status</span><span class="badge ${o.status==='done'?'badge-ok':'badge-warn'}">${esc(o.status)}</span></div>
     ${o.completedDate ? `<div class="kv-row"><span class="kv-label">Completed</span><span class="kv-value">${fmtDate(o.completedDate)}</span></div>` : ''}
     ${o.note ? `<div style="font-size:12px;color:var(--text-secondary);margin:10px 0;padding:10px 12px;background:var(--surface-soft);border-radius:6px;border-left:3px solid var(--caramel)">📝 ${esc(o.note)}</div>` : ''}
