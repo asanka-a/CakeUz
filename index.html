@@ -1103,6 +1103,45 @@ function getPaymentStatus(o) {
   if (o.depositDate) return 'Deposit Paid';
   return 'Unpaid';
 }
+// B2: WhatsApp quick-send link builder. Phone is stripped to digits only; templates
+// match the brief verbatim. Numeric amounts arrive pre-formatted ('SGD ' is in the template).
+function buildWhatsAppURL(phone, template, data) {
+  const clean = String(phone || '').replace(/\D/g, '');
+  const msgs = {
+    ORDER_CONFIRM:    `Hi ${data.name}, your order for ${data.item} on ${data.date} has been confirmed. Total: SGD ${data.total}. Thank you for choosing CakeUz!`,
+    READY_COLLECT:    `Hi ${data.name}, your order is ready for collection! See you ${data.date}. CakeUz 🎂`,
+    PAYMENT_REMINDER: `Hi ${data.name}, a friendly reminder that your balance of SGD ${data.balance} is due for your order on ${data.date}. CakeUz`,
+    QUOTE_SENT:       `Hi ${data.name}, your quote for ${data.item} is ready. Total: SGD ${data.total}. Please let us know if you would like to proceed. CakeUz`
+  };
+  return `https://wa.me/${clean}?text=${encodeURIComponent(msgs[template])}`;
+}
+function openWhatsAppForOrder(id, template){
+  const o = S.orders.find(x => x.id === id); if (!o) return;
+  if (!o.customerPhone) { showToast('Add a phone number to this order to enable WhatsApp.', 'error'); return; }
+  const r = getRecipe(o.recipeId);
+  const invoiceTotal = effectiveInvoiceTotal(o, r);
+  const balanceOwed = Math.max(0, invoiceTotal - (Number(o.depositAmount) || 0));
+  const data = {
+    name:    o.customer || '',
+    item:    r ? r.name : '',
+    date:    fmtDate(o.dueDate),
+    total:   invoiceTotal.toFixed(2),
+    balance: balanceOwed.toFixed(2)
+  };
+  window.open(buildWhatsAppURL(o.customerPhone, template, data), '_blank');
+}
+function openWhatsAppForQuote(id){
+  const q = S.quotations.find(x => x.id === id); if (!q) return;
+  if (!q.customerPhone) { showToast('Add a phone number to this quotation to enable WhatsApp.', 'error'); return; }
+  const r = getRecipe(q.recipeId);
+  const total = effectiveInvoiceTotal(q, r);
+  const data = {
+    name:  q.customer || '',
+    item:  r ? r.name : '',
+    total: total.toFixed(2)
+  };
+  window.open(buildWhatsAppURL(q.customerPhone, 'QUOTE_SENT', data), '_blank');
+}
 // Programmatic tab navigation that also updates the sidebar "active" state.
 // Used by clickable dashboard widgets that drop the user into a pre-filtered Orders tab.
 function navTo(tab) {
@@ -1841,6 +1880,10 @@ function showQuotationDetail(id){
       <div style="border-top:1px dashed var(--border-light);margin:6px 0 2px"></div>
       <div class="kv-row" style="font-size:11px;color:var(--text-muted)"><span>Transport</span><span>${fmtMoney(q.transportCost || 0)}</span></div>
       <div class="kv-row" style="font-weight:600"><span>Invoice total</span><span>${fmtMoney(invoiceTotal)}</span></div>
+    </div>
+    <div class="modal-section-title">WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— opens in a new tab with the quote pre-filled</span></div>
+    <div style="${q.customerPhone?'':'opacity:0.55'}">
+      <button class="btn btn-sm" ${q.customerPhone?'':'disabled'} title="${q.customerPhone?'Send quote via WhatsApp':'Add phone number to enable'}" onclick="openWhatsAppForQuote(${q.id})">📱 Send Quote via WhatsApp</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${q.status !== 'accepted' ? `<button class="btn btn-primary" onclick="closeModal();showEditQuotation(${q.id})">Edit</button>` : ''}
@@ -3961,6 +4004,12 @@ function showOrderDetail(id){
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:-4px">Balance auto-fills as (Invoice total − Deposit). Editable. Setting a Balance date marks the order Fully Paid.</div>
     <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="saveOrderPayment(${o.id})">Save payment</button></div>
+    <div class="modal-section-title">WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— opens in a new tab with the message pre-filled</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;${o.customerPhone?'':'opacity:0.55'}">
+      <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Send order confirmation':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'ORDER_CONFIRM')">📱 Order Confirmed</button>
+      <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Tell the customer it\\'s ready':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'READY_COLLECT')">📱 Ready to Collect</button>
+      <button class="btn btn-sm" ${o.customerPhone?'':'disabled'} title="${o.customerPhone?'Send a balance-due reminder':'Add phone number to customer to enable'}" onclick="openWhatsAppForOrder(${o.id}, 'PAYMENT_REMINDER')">📱 Payment Reminder</button>
+    </div>
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
       <button class="btn ${o.status==='pending'?'btn-chocolate':''}" onclick="closeModal();cycleStatus(${o.id})">${o.status==='pending'?'✓ Mark Done':'Undo (back to pending)'}</button>
