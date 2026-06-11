@@ -223,6 +223,17 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 .theme-btn:hover{background:var(--surface-soft);color:var(--text-primary)}
 .sortable-th{cursor:pointer;user-select:none;transition:color 0.15s}
 .sortable-th:hover{color:var(--caramel-dark)}
+/* Inline status pills (A3) — single <select> per row, hex codes from the brief */
+.status-select{border:0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;outline:none;-webkit-appearance:none;-moz-appearance:none;appearance:none;font-family:inherit}
+.status-select:focus{box-shadow:0 0 0 2px var(--surface-banner)}
+.status-pending {background:#FEF3C7;color:#92400E}
+.status-done    {background:#D1FAE5;color:#065F46}
+.status-draft   {background:#F3F4F6;color:#374151}
+.status-sent    {background:#DBEAFE;color:#1E40AF}
+.status-accepted{background:#D1FAE5;color:#065F46}
+.status-rejected{background:#FEE2E2;color:#991B1B}
+.status-expired {background:#F3F4F6;color:#6B7280}
+.confirm-row > td{background:var(--surface-banner);padding:10px 14px;font-size:13px;color:var(--text-primary);border-top:1px dashed var(--caramel)}
 </style>
 </head>
 <body>
@@ -1385,7 +1396,10 @@ function renderOrders(){
             <td style="color:var(--text-secondary)">${fmtMoney(cost)}</td>
             <td><span class="badge ${margin>=40?'badge-ok':margin>=20?'badge-warn':'badge-danger'}">${margin}%</span></td>
             <td style="font-size:12px;${overdue?'color:var(--danger);font-weight:600':''}">${fmtDate(o.dueDate)}${overdue?' ⚠️':''}</td>
-            <td><span class="badge ${o.status==='done'?'badge-ok':o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span></td>
+            <td>${o.status==='pending' || o.status==='done' ? `<select class="status-select status-${o.status}" data-id="${o.id}" onchange="onOrderStatusChange(${o.id}, this)" onclick="event.stopPropagation()">
+              <option value="pending"${o.status==='pending'?' selected':''}>Pending</option>
+              <option value="done"${o.status==='done'?' selected':''}>Done</option>
+            </select>` : `<span class="badge ${o.status==='cancelled'?'badge-danger':'badge-warn'}">${esc(o.status)}</span>`}</td>
             <td><button class="btn btn-sm" onclick="showOrderDetail(${o.id})">View</button></td></tr>`;
         }).join('')}</tbody>
       </table>
@@ -1444,10 +1458,9 @@ function renderQuotations(){
         </tr></thead>
         <tbody>${sortedRows.map(({q, r, totalRevenue, totalCost, margin}) => {
           const expired = q.validUntil && dateKey(q.validUntil) < todayKey && q.status === 'sent';
-          const statusBadgeClass = q.status === 'accepted' ? 'badge-ok'
-            : q.status === 'rejected' || q.status === 'expired' ? 'badge-danger'
-            : q.status === 'sent' ? 'badge-warn' : 'badge-info';
           const marginClass = margin >= 40 ? 'badge-ok' : margin >= 20 ? 'badge-warn' : 'badge-danger';
+          const qStatuses = ['draft','sent','accepted','rejected','expired'];
+          const validQStatus = qStatuses.includes(q.status);
           return `<tr>
             <td style="font-weight:500">${esc(q.customer)}</td>
             <td style="white-space:normal;font-size:12px">${r ? esc(r.name) : '?'}</td>
@@ -1456,7 +1469,9 @@ function renderQuotations(){
             <td style="color:var(--text-secondary)">${fmtMoney(totalCost)}</td>
             <td><span class="badge ${marginClass}">${margin}%</span></td>
             <td style="font-size:12px;${expired?'color:var(--danger);font-weight:600':''}">${q.validUntil ? fmtDate(q.validUntil) : '—'}${expired?' ⚠':''}</td>
-            <td><span class="badge ${statusBadgeClass}">${esc(q.status)}</span></td>
+            <td>${validQStatus ? `<select class="status-select status-${q.status}" data-id="${q.id}" onchange="onQuotationStatusChange(${q.id}, this.value)" onclick="event.stopPropagation()">
+              ${qStatuses.map(s => `<option value="${s}"${q.status===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+            </select>` : `<span class="badge badge-info">${esc(q.status)}</span>`}</td>
             <td><button class="btn btn-sm" onclick="showQuotationDetail(${q.id})">View</button></td></tr>`;
         }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:1.5rem">No quotations yet. Use <strong>+ New quotation</strong> to create one.</td></tr>'}</tbody>
       </table>
@@ -3515,6 +3530,45 @@ async function saveEditOrder(id){
   logAction('edit','Order updated', `#${id} — ${p.customer} — ${recipe.name} × ${p.qty}, cake cost ${fmtMoney(p.cakeCost)}`, 'order', id, fieldChanges);
   closeModal(); renderOrders();
   await persistWrite('editOrder', { id, ...orderRest }, activityLog[0]);
+}
+// ─── A3: Inline status dropdown handlers ────────────────────────────────────
+function onOrderStatusChange(id, sel){
+  const newStatus = sel.value;
+  if (newStatus === 'done') {
+    // Show inline confirmation row immediately below this row
+    const tr = sel.closest('tr');
+    if (!tr) { cycleStatus(id); return; }
+    const ncols = tr.children.length;
+    // Remove any stale confirm-row first
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains('confirm-row')) next.remove();
+    const confirmTr = document.createElement('tr');
+    confirmTr.className = 'confirm-row';
+    confirmTr.innerHTML = `<td colspan="${ncols}">
+      <span>Mark as Done? This will deduct stock.</span>
+      <button class="btn btn-sm btn-primary" style="margin-left:12px" onclick="confirmOrderDone(${id})">Confirm</button>
+      <button class="btn btn-sm" onclick="cancelOrderDone(this)">Cancel</button>
+    </td>`;
+    tr.parentNode.insertBefore(confirmTr, tr.nextSibling);
+  } else if (newStatus === 'pending') {
+    // From done → pending: existing cycleStatus restores stock + logs
+    cycleStatus(id);
+  }
+}
+function confirmOrderDone(id){
+  // cycleStatus triggers renderOrders which rebuilds the table, removing the confirm row
+  cycleStatus(id);
+}
+function cancelOrderDone(btn){
+  const confirmTr = btn.closest('tr.confirm-row');
+  if (!confirmTr) return;
+  const prevTr = confirmTr.previousElementSibling;
+  const sel = prevTr && prevTr.querySelector('.status-select');
+  if (sel) sel.value = 'pending';
+  confirmTr.remove();
+}
+function onQuotationStatusChange(id, status){
+  setQuotationStatus(id, status);
 }
 const _cycleInFlight = new Set();
 async function cycleStatus(id){
