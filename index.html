@@ -261,6 +261,34 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 #bulk-action-bar .btn-orange{background:#E84A0C;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
 #bulk-action-bar .btn-orange:disabled{opacity:0.55;cursor:not-allowed}
 @media (max-width:720px){#bulk-action-bar{left:0;padding:0 12px;gap:10px}}
+/* Print invoice / quote PDF (B3) — see renderInvoice / renderQuote */
+#print-area{display:none}
+.print-doc{font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:#1a1a1a;font-size:13px;line-height:1.5;max-width:none}
+.print-doc h1{font-family:'Playfair Display',Georgia,serif;font-size:26px;margin:0 0 4px;font-weight:700;letter-spacing:0.02em}
+.print-doc .print-header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #1a1a1a;padding-bottom:14px;margin-bottom:18px}
+.print-doc .print-header img{max-width:160px;height:auto}
+.print-doc .print-meta{text-align:right;font-size:12px;color:#444}
+.print-doc .print-meta strong{display:block;font-size:13px;color:#1a1a1a;margin-bottom:2px}
+.print-doc h2{font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:#666;margin:18px 0 8px;font-weight:600}
+.print-doc table{width:100%;border-collapse:collapse;font-size:13px}
+.print-doc table th{text-align:left;padding:8px 6px;border-bottom:1px solid #1a1a1a;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#666}
+.print-doc table td{padding:7px 6px;border-bottom:1px solid #eee;vertical-align:top}
+.print-doc table td.num{text-align:right;white-space:nowrap}
+.print-doc tr.totals-row td{border-top:1px solid #1a1a1a;border-bottom:none;font-weight:600;padding-top:10px}
+.print-doc tr.grand-row td{border-bottom:2px solid #1a1a1a;font-size:15px;font-weight:700;padding:10px 6px}
+.print-doc .pay-summary{display:flex;justify-content:flex-end;gap:32px;margin-top:14px;font-size:13px}
+.print-doc .pay-summary div{text-align:right}
+.print-doc .pay-summary .pay-row{display:flex;gap:24px;justify-content:flex-end}
+.print-doc .pay-summary strong{display:inline-block;min-width:120px;color:#666;font-weight:500}
+.print-doc .pay-summary .due{color:#991B1B;font-weight:700}
+.print-doc .print-footer{margin-top:32px;padding-top:14px;border-top:1px solid #ccc;font-size:11px;color:#666;text-align:center;line-height:1.6}
+.print-doc .print-note{font-size:11px;color:#777;font-style:italic;margin-top:10px}
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; }
+  @page { margin: 20mm; }
+  .print-doc{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -321,6 +349,7 @@ input:focus,select:focus{outline:none;border-color:var(--caramel)}
 </div>
 <div id="modal-root"></div>
 <div id="bulk-action-bar"></div>
+<div id="print-area"></div>
 
 <script>
 
@@ -1102,6 +1131,123 @@ function getPaymentStatus(o) {
   if (o.balanceDate) return 'Fully Paid';
   if (o.depositDate) return 'Deposit Paid';
   return 'Unpaid';
+}
+// B3: Printable invoice / quote helpers. Renders structured markup into #print-area,
+// then window.print() picks it up via the @media print rule that hides everything else.
+function _printLogoSrc(){
+  return document.querySelector('.sidebar-brand img')?.src || '';
+}
+function _formatInvoiceLines(entity, recipe){
+  const lines = [];
+  const qty = Number(entity.qty) || 1;
+  const sellPerU = effectiveSellPerUnit(entity, recipe);
+  const cakeRev  = sellPerU * qty;
+  lines.push({ desc: (recipe ? recipe.name : 'Cake') + ` × ${qty}`, qty, unit: fmtMoney(sellPerU), amount: cakeRev });
+  // Packaging — printed as a single line summarising the per-cake total
+  const packaging = Array.isArray(entity.packaging) ? entity.packaging : [];
+  if (packaging.length) {
+    const packPerCake = packaging.reduce((s,p)=> s + (Number(p.price)||0), 0);
+    const packTotal   = packPerCake * qty;
+    const items = packaging.map(p => p.item).filter(Boolean).join(' + ') || 'Packaging';
+    lines.push({ desc: `Packaging — ${items}`, qty, unit: fmtMoney(packPerCake), amount: packTotal });
+  }
+  // Add-ons — one row each
+  const addons = Array.isArray(entity.addons) ? entity.addons : [];
+  addons.forEach(a => {
+    const aQty   = Number(a.qty)   || 0;
+    const aPrice = Number(a.price) || 0;
+    lines.push({ desc: a.name || 'Add-on', qty: aQty, unit: fmtMoney(aPrice), amount: aQty * aPrice });
+  });
+  return lines;
+}
+function _renderInvoiceBody(entity, recipe, opts){
+  const lines = _formatInvoiceLines(entity, recipe);
+  const subtotal      = lines.reduce((s,l)=> s + l.amount, 0);
+  const transport     = Number(entity.transportCost) || 0;
+  const grand         = subtotal + transport;
+  const logoSrc       = _printLogoSrc();
+  const customerPhone = entity.customerPhone || '';
+  const customerEmail = entity.customerEmail || '';
+  const customerAddr  = entity.customerAddress || '';
+  const businessLine  = (typeof currentUserEmail === 'function' ? currentUserEmail() : '') ||
+                        document.getElementById('topbar-user')?.textContent || '';
+  return `<div class="print-doc">
+    <div class="print-header">
+      <div>
+        ${logoSrc ? `<img src="${logoSrc}" alt="CakeUz">` : '<h1>CakeUz</h1>'}
+      </div>
+      <div class="print-meta">
+        <strong>${opts.titleLabel}</strong>
+        <div>${opts.docNumber}</div>
+        <div>Date: ${fmtDate(opts.issueDate)}</div>
+        ${opts.validityNote ? `<div style="margin-top:4px;font-size:11px;color:#666">${esc(opts.validityNote)}</div>` : ''}
+      </div>
+    </div>
+    <h2>Bill to</h2>
+    <div style="font-size:13px;line-height:1.6">
+      <div style="font-weight:600">${esc(entity.customer || '')}</div>
+      ${customerPhone ? `<div>📞 ${esc(customerPhone)}</div>` : ''}
+      ${customerEmail ? `<div>✉️ ${esc(customerEmail)}</div>` : ''}
+      ${customerAddr  ? `<div>📍 ${esc(customerAddr)}</div>`  : ''}
+    </div>
+    <h2>${opts.titleLabel === 'QUOTATION' ? 'Quoted items' : 'Items'}</h2>
+    <table>
+      <thead><tr><th style="width:55%">Description</th><th class="num" style="width:10%">Qty</th><th class="num" style="width:15%">Unit</th><th class="num" style="width:20%">Amount</th></tr></thead>
+      <tbody>
+        ${lines.map(l => `<tr><td>${esc(l.desc)}</td><td class="num">${l.qty}</td><td class="num">${esc(l.unit)}</td><td class="num">${fmtMoney(l.amount)}</td></tr>`).join('')}
+        <tr class="totals-row"><td colspan="3" class="num">Subtotal</td><td class="num">${fmtMoney(subtotal)}</td></tr>
+        ${transport > 0 ? `<tr><td colspan="3" class="num">Transport — charged at cost</td><td class="num">${fmtMoney(transport)}</td></tr>` : ''}
+        <tr class="grand-row"><td colspan="3" class="num">${opts.titleLabel === 'QUOTATION' ? 'Quote total' : 'Grand total'}</td><td class="num">${fmtMoney(grand)}</td></tr>
+      </tbody>
+    </table>
+    ${opts.paymentSummary ? opts.paymentSummary(grand) : ''}
+    ${opts.note ? `<div class="print-note">${esc(opts.note)}</div>` : ''}
+    <div class="print-footer">
+      ${opts.footerLine}<br>
+      CakeUz${businessLine ? ' &middot; ' + esc(businessLine) : ''}
+    </div>
+  </div>`;
+}
+function renderInvoice(order){
+  const r = getRecipe(order.recipeId);
+  const grandPlaceholder = effectiveInvoiceTotal(order, r);
+  const paymentSummary = (grand) => {
+    const deposit = Number(order.depositAmount) || 0;
+    const due     = Math.max(0, grand - deposit);
+    return `<div class="pay-summary"><div>
+      ${deposit > 0 ? `<div class="pay-row"><strong>Deposit paid${order.depositDate?` (${fmtDate(order.depositDate)})`:''}</strong><span>${fmtMoney(deposit)}</span></div>` : ''}
+      <div class="pay-row"><strong>Balance due</strong><span class="${due > 0 ? 'due' : ''}">${fmtMoney(due)}</span></div>
+      ${order.balanceDate ? `<div class="pay-row" style="color:#065F46"><strong>Status</strong><span>Paid in full on ${fmtDate(order.balanceDate)}</span></div>` : ''}
+    </div></div>`;
+  };
+  document.getElementById('print-area').innerHTML = _renderInvoiceBody(order, r, {
+    titleLabel: 'INVOICE',
+    docNumber: `INV-${String(order.id).padStart(5,'0')}`,
+    issueDate: today(),
+    paymentSummary,
+    footerLine: 'Thank you for your order!'
+  });
+}
+function renderQuote(quote){
+  const r = getRecipe(quote.recipeId);
+  document.getElementById('print-area').innerHTML = _renderInvoiceBody(quote, r, {
+    titleLabel: 'QUOTATION',
+    docNumber: `QUO-${String(quote.id).padStart(5,'0')}`,
+    issueDate: today(),
+    validityNote: 'Valid for 14 days from date of issue',
+    note: 'This is not a tax invoice.',
+    footerLine: 'Thank you for considering CakeUz!'
+  });
+}
+function printInvoiceForOrder(id){
+  const o = S.orders.find(x => x.id === id); if (!o) return;
+  renderInvoice(o);
+  setTimeout(() => window.print(), 50);
+}
+function printQuoteForQuotation(id){
+  const q = S.quotations.find(x => x.id === id); if (!q) return;
+  renderQuote(q);
+  setTimeout(() => window.print(), 50);
 }
 // B2: WhatsApp quick-send link builder. Phone is stripped to digits only; templates
 // match the brief verbatim. Numeric amounts arrive pre-formatted ('SGD ' is in the template).
@@ -1889,6 +2035,7 @@ function showQuotationDetail(id){
       ${q.status !== 'accepted' ? `<button class="btn btn-primary" onclick="closeModal();showEditQuotation(${q.id})">Edit</button>` : ''}
       ${q.status !== 'accepted' && q.status !== 'rejected'
         ? `<button class="btn btn-chocolate" onclick="closeModal();convertQuotationToOrder(${q.id})">→ Convert to Order</button>` : ''}
+      <button class="btn" onclick="printQuoteForQuotation(${q.id})">🖨 Generate Quote PDF</button>
       <button class="btn" onclick="closeModal();showCloneQuotation(${q.id})">Clone</button>
       <button class="btn" onclick="closeModal();showEntityHistory('quotation', ${q.id}, ${JSON.stringify('Quote #'+q.id+' — '+q.customer)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
@@ -4013,6 +4160,7 @@ function showOrderDetail(id){
     <div style="display:flex;gap:8px;margin-top:1.25rem;flex-wrap:wrap">
       ${editVisible ? `<button class="btn btn-primary" onclick="closeModal();showEditOrder(${o.id})">Edit</button>` : ''}
       <button class="btn ${o.status==='pending'?'btn-chocolate':''}" onclick="closeModal();cycleStatus(${o.id})">${o.status==='pending'?'✓ Mark Done':'Undo (back to pending)'}</button>
+      <button class="btn" onclick="printInvoiceForOrder(${o.id})">🖨 Generate Invoice</button>
       <button class="btn" onclick="closeModal();showCloneOrder(${o.id})">Clone</button>
       <button class="btn" onclick="closeModal();showEntityHistory('order', ${o.id}, ${JSON.stringify('Order #'+o.id+' — '+o.customer)})">Change log</button>
       <button class="btn" onclick="closeModal()">Close</button>
