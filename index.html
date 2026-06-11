@@ -1050,8 +1050,16 @@ function switchTab(tab,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   if(btn) btn.classList.add('active');
+  // Sort state on Shopping + Activity Log resets on tab change (per A1 spec)
+  _shoppingSort = { key: 'date', dir: 'desc' };
+  _logSort      = { key: 'time', dir: 'desc' };
   ({dashboard:renderDashboard,inventory:renderInventory,shopping:renderShopping,recipes:renderRecipes,orders:renderOrders,quotations:renderQuotations,customers:renderCustomers,pricing:renderPricing,activitylog:renderActivityLog,help:renderHelp})[tab]();
 }
+// Sort state for the non-table views (Shopping cards, Activity Log feed) — module-scoped, reset on tab change
+let _shoppingSort = { key: 'date', dir: 'desc' };
+let _logSort      = { key: 'time', dir: 'desc' };
+function setShoppingSort(key, dir){ _shoppingSort = { key, dir }; renderShopping(); }
+function setLogSort(key, dir){      _logSort      = { key, dir }; renderActivityLogBody(); }
 
 // ─── THEME ──────────────────────────────────────────────────────────────────
 function applyTheme(t){
@@ -1206,10 +1214,31 @@ function renderInventory(){
 
 // ─── SHOPPING ────────────────────────────────────────────────────────────────
 function renderShopping(){
-  const trips=[...S.shoppingTrips].reverse();
+  // Sort + render. _shoppingSort.dir is 'desc'|'asc'; 'desc' means newest/largest first.
+  const trips = sortRows(S.shoppingTrips, _shoppingSort.key, _shoppingSort.dir, (t, col) => {
+    switch (col) {
+      case 'date':  return dateKey(t.date);
+      case 'shop':  return t.shop || '';
+      case 'items': return (t.items || []).length;
+      case 'total': return Number(t.total) || 0;
+      default: return null;
+    }
+  });
+  const sortKey = _shoppingSort.key, sortDir = _shoppingSort.dir;
+  const opt = (val, label, group) => `<option value="${val}"${(group==='key'?sortKey:sortDir)===val?' selected':''}>${label}</option>`;
   document.getElementById('tab-shopping').innerHTML=`
     <div class="card">
       <div class="card-head"><span class="card-title">Shopping Trips</span><button class="btn btn-primary btn-sm" onclick="showAddTrip()">+ New trip</button></div>
+      ${S.shoppingTrips.length === 0 ? '' : `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--text-secondary)">
+        <span>Sort by:</span>
+        <select onchange="setShoppingSort(this.value, _shoppingSort.dir)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+          ${opt('date','Date','key')}${opt('shop','Shop','key')}${opt('items','Item count','key')}${opt('total','Total','key')}
+        </select>
+        <select onchange="setShoppingSort(_shoppingSort.key, this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+          ${opt('desc','↓ Newest / largest first','dir')}${opt('asc','↑ Oldest / smallest first','dir')}
+        </select>
+      </div>`}
       ${trips.length===0?'<div class="empty-state">No shopping trips yet.<br>Add one to start tracking ingredient prices.</div>':''}
       ${trips.map(t=>`
         <div class="trip-card">
@@ -2036,12 +2065,21 @@ function renderActivityLog(){
     const active = _logEntityFilter === val;
     return `<button class="btn btn-sm" style="${active?'background:var(--caramel);color:#fff':''}" onclick="setLogFilter('${val}')">${label}</button>`;
   };
+  const sortKey = _logSort.key, sortDir = _logSort.dir;
+  const opt = (val, label, group) => `<option value="${val}"${(group==='key'?sortKey:sortDir)===val?' selected':''}>${label}</option>`;
   document.getElementById('tab-activitylog').innerHTML = `
     <div class="card">
       <div class="card-head">
         <span class="card-title">Activity Log</span>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input id="log-search" type="search" placeholder="Search..." value="${esc(_logSearchQ)}" oninput="setLogSearch(this.value)" style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;width:160px">
+          <span style="font-size:11px;color:var(--text-muted)">Sort:</span>
+          <select onchange="setLogSort(this.value, _logSort.dir)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+            ${opt('time','Time','key')}${opt('action','Action','key')}${opt('type','Type','key')}
+          </select>
+          <select onchange="setLogSort(_logSort.key, this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+            ${opt('desc','↓ Newest first','dir')}${opt('asc','↑ Oldest first','dir')}
+          </select>
           <span style="font-size:11px;color:var(--text-muted)">${activityLog.length} total</span>
         </div>
       </div>
@@ -2065,11 +2103,19 @@ function renderActivityLogBody(){
     }
     return true;
   });
-  if (filtered.length === 0) {
+  const sorted = sortRows(filtered, _logSort.key, _logSort.dir, (l, col) => {
+    switch (col) {
+      case 'time':   return l.time || '';
+      case 'action': return l.action || '';
+      case 'type':   return l.entityType || l.type || '';
+      default: return null;
+    }
+  });
+  if (sorted.length === 0) {
     el.innerHTML = '<div class="empty-state">No matching log entries.</div>';
     return;
   }
-  el.innerHTML = filtered.map(l => `
+  el.innerHTML = sorted.map(l => `
     <div class="log-entry">
       <div class="log-dot ${typeColors[l.type]||'log-edit'}"></div>
       <div style="flex:1">
